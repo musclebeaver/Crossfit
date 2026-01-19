@@ -14,10 +14,10 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class DailyRankingScheduler {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DailyRankingScheduler.class);
 
     private final WodRepository wodRepository;
     private final RecordService recordService;
@@ -36,13 +36,12 @@ public class DailyRankingScheduler {
         List<Wod> yesterdayWods = wodRepository.findAllByDate(yesterday);
 
         for (Wod wod : yesterdayWods) {
-            Set<ZSetOperations.TypedTuple<Object>> rankings = recordService.getTopRankings(wod.getId(),
-                    null, Integer.MAX_VALUE);
+            List<RecordController.RankingResponse> rankings = recordService.getRankings(wod.getId(),
+                    null, 0, Integer.MAX_VALUE, null);
 
-            int currentRank = 1;
-            for (ZSetOperations.TypedTuple<Object> tuple : rankings) {
-                Long userId = Long.valueOf((String) tuple.getValue());
-                Double score = tuple.getScore();
+            for (RecordController.RankingResponse ranking : rankings) {
+                Long userId = ranking.getUserId();
+                Double score = ranking.getScore();
 
                 // Score 해석: 10,000,000 이상이면 Rx'd
                 boolean isRx = score >= 10_000_000.0;
@@ -50,7 +49,7 @@ public class DailyRankingScheduler {
                 RankingHistory history = RankingHistory.builder()
                         .wodId(wod.getId())
                         .userId(userId)
-                        .rank(currentRank++)
+                        .rank(ranking.getRank() != null ? ranking.getRank() : 0)
                         .score(score)
                         .isRx(isRx)
                         .date(yesterday)
@@ -58,7 +57,7 @@ public class DailyRankingScheduler {
 
                 rankingHistoryRepository.save(history);
             }
-            log.info("WOD ID {} ranking snapshot completed. Total {} users.", wod.getId(), currentRank - 1);
+            log.info("WOD ID {} ranking snapshot completed. Total {} users.", wod.getId(), rankings.size());
         }
         log.info("Daily ranking snapshot for {} completed successfully.", yesterday);
     }

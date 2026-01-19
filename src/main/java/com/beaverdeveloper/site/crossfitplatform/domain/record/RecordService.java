@@ -8,7 +8,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -16,6 +18,7 @@ public class RecordService {
 
     private final RecordRepository recordRepository;
     private final com.beaverdeveloper.site.crossfitplatform.domain.user.UserRepository userRepository;
+    private final com.beaverdeveloper.site.crossfitplatform.domain.wod.WodRepository wodRepository;
     private final List<RankingStrategy> strategies;
     private final RedisTemplate<String, Object> redisTemplate;
 
@@ -57,14 +60,73 @@ public class RecordService {
         }
     }
 
-    public Set<ZSetOperations.TypedTuple<Object>> getTopRankings(Long wodId, Long boxId, int limit) {
-        String key;
-        if (boxId == null) {
-            key = RANKING_KEY_PREFIX + wodId + ":global";
+    public List<RecordController.RankingResponse> getRankings(Long wodId, Long boxId, int page, int size,
+            String nickname) {
+        String key = (boxId == null) ? RANKING_KEY_PREFIX + wodId + ":global"
+                : RANKING_KEY_PREFIX + wodId + ":box:" + boxId;
+
+        com.beaverdeveloper.site.crossfitplatform.domain.wod.Wod wod = wodRepository.findById(wodId)
+                .orElseThrow(() -> new IllegalArgumentException("WOD not found"));
+        RankingStrategy strategy = getStrategy(wod.getType());
+
+        if (nickname != null && !nickname.isEmpty()) {
+            // Use MySQL for nickname search, then Redis for score
+            org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page,
+                    size);
+            org.springframework.data.domain.Page<com.beaverdeveloper.site.crossfitplatform.domain.user.User> userPage;
+
+            if (boxId == null) {
+                userPage = userRepository.findByNicknameContaining(nickname, pageable);
+            } else {
+                userPage = userRepository.findByBoxIdAndNicknameContaining(boxId, nickname, pageable);
+            }
+
+            return userPage.getContent().stream()
+                    .map(u -> {
+                        Double score = redisTemplate.opsForZSet().score(key, u.getId().toString());
+                        if (score == null)
+                            return null;
+                        Long rank = redisTemplate.opsForZSet().reverseRank(key, u.getId().toString());
+
+                        double resultValue = strategy.getResultValueFromScore(score);
+                        String displayValue = strategy.formatRecord(resultValue);
+                        boolean isRx = strategy.isRxFromScore(score);
+
+                        return new RecordController.RankingResponse(u.getId(), u.getNickname(), score,
+                                rank != null ? rank.intValue() + 1 : null, displayValue, isRx);
+                    })
+                    .filter(Objects::nonNull)
+                    .sorted((a, b) -> b.getScore().compareTo(a.getScore()))
+                    .collect(Collectors.toList());
         } else {
-            key = RANKING_KEY_PREFIX + wodId + ":box:" + boxId;
+            // Use Redis for standard paginated rankings
+            int start = page * size;
+            int stop = (page + 1) * size - 1;
+
+            Set<ZSetOperations.TypedTuple<Object>> results = redisTemplate.opsForZSet().reverseRangeWithScores(key,
+                    start, stop);
+
+            if (results == null)
+                return List.of();
+
+            int[] currentRank = { start + 1 }; // 1-based rank
+            return results.stream()
+                    .map(tuple -> {
+                        Long userId = Long.valueOf((String) tuple.getValue());
+                        Double score = tuple.getScore();
+                        String userNickname = userRepository.findById(userId)
+                                .map(com.beaverdeveloper.site.crossfitplatform.domain.user.User::getNickname)
+                                .orElse("Unknown");
+
+                        double resultValue = strategy.getResultValueFromScore(score);
+                        String displayValue = strategy.formatRecord(resultValue);
+                        boolean isRx = strategy.isRxFromScore(score);
+
+                        return new RecordController.RankingResponse(userId, userNickname, score,
+                                currentRank[0]++, displayValue, isRx);
+                    })
+                    .collect(Collectors.toList());
         }
-        return redisTemplate.opsForZSet().reverseRangeWithScores(key, 0, limit - 1);
     }
 
     private RankingStrategy getStrategy(WodType type) {

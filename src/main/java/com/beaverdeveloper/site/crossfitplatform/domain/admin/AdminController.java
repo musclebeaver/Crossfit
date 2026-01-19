@@ -4,12 +4,14 @@ import com.beaverdeveloper.site.crossfitplatform.domain.box.Box;
 import com.beaverdeveloper.site.crossfitplatform.domain.box.BoxRepository;
 import com.beaverdeveloper.site.crossfitplatform.domain.user.User;
 import com.beaverdeveloper.site.crossfitplatform.domain.user.UserRepository;
+import com.beaverdeveloper.site.crossfitplatform.domain.user.UserRole;
 import com.beaverdeveloper.site.crossfitplatform.global.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;

@@ -11,6 +11,12 @@ public class AiConfig {
     @Value("${gemini.api.key:YOUR_API_KEY_HERE}")
     private String apiKey;
 
+    @Value("${gemini.api.model:gemini-3-flash-preview}")
+    private String model;
+
+    @Value("${gemini.api.base-url:https://generativelanguage.googleapis.com/v1beta/models/}")
+    private String baseUrl;
+
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();
@@ -18,5 +24,13 @@ public class AiConfig {
 
     public String getApiKey() {
         return apiKey;
+    }
+
+    public String getModel() {
+        return model;
+    }
+
+    public String getBaseUrl() {
+        return baseUrl;
     }
 }

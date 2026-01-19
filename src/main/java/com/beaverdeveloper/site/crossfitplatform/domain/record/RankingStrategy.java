@@ -11,6 +11,18 @@ public interface RankingStrategy {
     Comparator<Record> getComparator();
 
     Double calculateRedisScore(Record record);
+
+    String formatRecord(Double resultValue);
+
+    default boolean isRxFromScore(Double score) {
+        return score != null && score >= 10_000_000.0;
+    }
+
+    default Double getResultValueFromScore(Double score) {
+        if (score == null)
+            return 0.0;
+        return score >= 10_000_000.0 ? score - 10_000_000.0 : score;
+    }
 }
 
 @Component
@@ -28,14 +40,22 @@ class AmrapRankingStrategy implements RankingStrategy {
 
     @Override
     public Double calculateRedisScore(Record record) {
-        // Rx'd 가중치: 10,000,000 (충분히 큰 값)
         double rxWeight = record.isRx() ? 10_000_000.0 : 0.0;
         return rxWeight + record.getResultValue();
+    }
+
+    @Override
+    public String formatRecord(Double resultValue) {
+        if (resultValue == null)
+            return "0 reps";
+        return resultValue.intValue() + " reps";
     }
 }
 
 @Component
 class ForTimeRankingStrategy implements RankingStrategy {
+    private static final double MAX_VALUE = 10_000_000.0;
+
     @Override
     public WodType getSupportedType() {
         return WodType.FOR_TIME;
@@ -49,11 +69,26 @@ class ForTimeRankingStrategy implements RankingStrategy {
 
     @Override
     public Double calculateRedisScore(Record record) {
-        // For Time은 시간이 짧을수록 좋으므로, 가중치에서 뺀 값을 사용
-        // Rx'd는 더 높은 점수를 가져야 함
-        double rxWeight = record.isRx() ? 10_000_000.0 : 0.0;
-        // 결과값이 0 이상 10,000,000 미만이라고 가정 (약 115일 분량의 초)
-        return rxWeight + (10_000_000.0 - record.getResultValue());
+        double rxWeight = record.isRx() ? MAX_VALUE : 0.0;
+        return rxWeight + (MAX_VALUE - record.getResultValue());
+    }
+
+    @Override
+    public Double getResultValueFromScore(Double score) {
+        if (score == null)
+            return 0.0;
+        double base = score >= MAX_VALUE ? score - MAX_VALUE : score;
+        return MAX_VALUE - base;
+    }
+
+    @Override
+    public String formatRecord(Double resultValue) {
+        if (resultValue == null)
+            return "0:00";
+        int totalSeconds = resultValue.intValue();
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+        return String.format("%02d:%02d", minutes, seconds);
     }
 }
 
@@ -74,5 +109,12 @@ class MaxWeightRankingStrategy implements RankingStrategy {
     public Double calculateRedisScore(Record record) {
         double rxWeight = record.isRx() ? 10_000_000.0 : 0.0;
         return rxWeight + record.getResultValue();
+    }
+
+    @Override
+    public String formatRecord(Double resultValue) {
+        if (resultValue == null)
+            return "0 kg";
+        return resultValue.intValue() + " kg";
     }
 }

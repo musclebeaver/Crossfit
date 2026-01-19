@@ -27,24 +27,31 @@ class _WodTabState extends State<WodTab> {
       final now = DateTime.now();
       final dateStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
-      // 1. 글로벌 WOD 가져오기
+      // 1. 글로벌 WOD 가져오기 (boxId 없음)
       final globalRes = await ApiClient().dio.get('/wods', queryParameters: {'date': dateStr});
       if (globalRes.data['success']) {
         _globalWods = globalRes.data['data'];
       }
 
-      // 2. 가입한 박스 정보 가져오기 및 WOD 가져오기 (가상 로직)
-      // 실제로는 유저 정보를 조회해서 가입된 boxId 목록을 가져와야 함
-      // 여기서는 예시로 로직 구조만 잡음
-      
-      _boxWods = {
-        'Crossfit Beaver': [
-          {'title': 'Heavy Day', 'description': 'Back Squat 5-5-5-5-5', 'type': 'MAX_WEIGHT', 'timeCap': 0}
-        ],
-        'Crossfit Seoul': [
-          {'title': 'Metcon', 'description': '21-15-9 Thrusters, Pull-ups', 'type': 'FOR_TIME', 'timeCap': 900}
-        ]
-      };
+      // 2. 유저 정보 및 박스 WOD 가져오기
+      final userRes = await ApiClient().dio.get('/users/me');
+      if (userRes.data['success']) {
+        final userData = userRes.data['data'];
+        final boxId = userData['boxId'];
+        final boxName = userData['boxName'] ?? 'My Box';
+
+        if (boxId != null) {
+          final boxWodRes = await ApiClient().dio.get('/wods', queryParameters: {
+            'date': dateStr,
+            'boxId': boxId,
+          });
+          if (boxWodRes.data['success']) {
+            _boxWods = {boxName: boxWodRes.data['data']};
+          }
+        } else {
+          _boxWods = {};
+        }
+      }
 
     } catch (e) {
       debugPrint("WOD Fetch Error: $e");
@@ -150,7 +157,7 @@ class _WodTabState extends State<WodTab> {
                   }
                 },
                 icon: const Icon(Icons.edit_note, size: 20),
-                label: const Text('Log Result', style: TextStyle(fontWeight: FontWeight.bold)),
+                label: const Text('Record Result', style: TextStyle(fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,

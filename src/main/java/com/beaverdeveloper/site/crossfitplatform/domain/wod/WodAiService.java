@@ -21,17 +21,34 @@ public class WodAiService {
     private final AiConfig aiConfig;
     private final RestTemplate restTemplate;
 
-    private static final String GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=";
+    public String suggestWod(String boxName, String type, String requirements) {
+        String additionalRequirements = (requirements == null || requirements.isBlank())
+                ? "Generate a balanced and varied workout."
+                : "User specified requirements: " + requirements;
 
-    public String suggestWod(String boxName, String type) {
+        String typePrompt = type.equalsIgnoreCase("RANDOM")
+                ? "Select an appropriate Crossfit WOD type (AMRAP, FOR_TIME, MAX_WEIGHT, or EMOM) based on the requirements."
+                : "WOD type: " + type;
+
         String prompt = String.format(
-                "You are an expert Crossfit coach for the gym '%s'. " +
-                        "Generate a creative and effective Crossfit WOD of type '%s'. " +
-                        "Provide the response in JSON format exactly as follows: " +
-                        "{\"title\": \"WOD Title\", \"description\": \"Detailed exercises and reps\", \"type\": \"%s\", \"timeCap\": 1200}. "
+                "You are an expert Crossfit coach for the gym '%s'.\n" +
+                        "Generate a creative and effective Crossfit WOD.\n" +
+                        "%s\n" +
+                        "%s\n" +
+                        "CRITICAL: You must respond ONLY with a valid JSON object. Do not include any explanation or markdown formatting.\n"
                         +
-                        "Make the description clear and professional in Korean.",
-                boxName, type, type);
+                        "JSON Schema:\n" +
+                        "{\n" +
+                        "  \"title\": \"WOD Title\",\n" +
+                        "  \"description\": \"Detailed exercises, reps, and sets\",\n" +
+                        "  \"type\": \"AMRAP | FOR_TIME | MAX_WEIGHT | EMOM\",\n" +
+                        "  \"timeCap\": 1200\n" +
+                        "}\n" +
+                        "Rules:\n" +
+                        "1. Description MUST be in English and very clear.\n" +
+                        "2. Ensure all exercises are standard Crossfit movements.\n" +
+                        "3. Return only the JSON content.",
+                boxName, typePrompt, additionalRequirements);
 
         Map<String, Object> requestBody = new HashMap<>();
         Map<String, Object> content = new HashMap<>();
@@ -40,25 +57,46 @@ public class WodAiService {
         content.put("parts", List.of(part));
         requestBody.put("contents", List.of(content));
 
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, createHeaders());
+
+        String url = aiConfig.getBaseUrl() + aiConfig.getModel() + ":generateContent?key=" + aiConfig.getApiKey();
+        Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
+
+        if (response == null || !response.containsKey("candidates")) {
+            throw new RuntimeException("Empty response from Gemini API");
+        }
+
+        List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
+        if (candidates == null || candidates.isEmpty()) {
+            throw new RuntimeException("No candidates returned from Gemini API");
+        }
+
+        Map<String, Object> firstCandidate = candidates.get(0);
+        Map<String, Object> contentResponse = (Map<String, Object>) firstCandidate.get("content");
+        List<Map<String, Object>> parts = (List<Map<String, Object>>) contentResponse.get("parts");
+        String aiText = (String) parts.get(0).get("text");
+
+        return cleanJsonResponse(aiText);
+    }
+
+    private HttpHeaders createHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        return headers;
+    }
 
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+    private String cleanJsonResponse(String aiText) {
+        if (aiText == null)
+            return "{}";
 
-        try {
-            String url = GEMINI_URL + aiConfig.getApiKey();
-            Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
+        // Find JSON block if it exists
+        int startIndex = aiText.indexOf("{");
+        int endIndex = aiText.lastIndexOf("}");
 
-            List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
-            Map<String, Object> firstCandidate = candidates.get(0);
-            Map<String, Object> contentResponse = (Map<String, Object>) firstCandidate.get("content");
-            List<Map<String, Object>> parts = (List<Map<String, Object>>) contentResponse.get("parts");
-            String aiText = (String) parts.get(0).get("text");
-
-            return aiText.replaceAll("```json", "").replaceAll("```", "").trim();
-        } catch (Exception e) {
-            log.error("Gemini API call failed", e);
-            return "{\"title\": \"Error\", \"description\": \"AI 추천을 가져오는데 실패했습니다.\", \"type\": \"AMRAP\", \"timeCap\": 0}";
+        if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+            return aiText.substring(startIndex, endIndex + 1);
         }
+
+        return aiText.trim();
     }
 }

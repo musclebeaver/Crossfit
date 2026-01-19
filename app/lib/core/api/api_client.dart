@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 
 class ApiClient {
   final Dio _dio = Dio(BaseOptions(
-    baseUrl: 'http://localhost:8080/api/v1', // 백엔드 주소 (에뮬레이터의 경우 10.0.2.2 등 조정 필요)
+    baseUrl: 'http://127.0.0.1:8080/api/v1', // 백엔드 주소 (localhost 대신 127.0.0.1 사용 권장)
     connectTimeout: const Duration(seconds: 5),
     receiveTimeout: const Duration(seconds: 3),
   ));

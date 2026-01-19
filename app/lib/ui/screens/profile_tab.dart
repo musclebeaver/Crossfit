@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../styles/app_colors.dart';
 import '../../core/api/api_client.dart';
+import 'login_screen.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
@@ -142,7 +144,8 @@ class _ProfileTabState extends State<ProfileTab> {
   Widget build(BuildContext context) {
     if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    final isPremium = _userProfile['role'] == 'PREMIUM';
+    final role = _userProfile['role'];
+    final bool isPremium = role == 'PREMIUM_USER' || role == 'PREMIUM_COACH';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -170,14 +173,22 @@ class _ProfileTabState extends State<ProfileTab> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(_userProfile['email'], style: const TextStyle(color: AppColors.textSecondary)),
-                if (isPremium) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(color: Colors.amber, borderRadius: BorderRadius.circular(12)),
-                    child: const Text('PREMIUM', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black)),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isPremium ? Colors.amber : AppColors.primary.withOpacity(0.1), 
+                    borderRadius: BorderRadius.circular(12)
                   ),
-                ],
+                  child: Text(
+                    isPremium ? 'PREMIUM' : role, 
+                    style: TextStyle(
+                      fontSize: 10, 
+                      fontWeight: FontWeight.bold, 
+                      color: isPremium ? Colors.black : AppColors.primary
+                    )
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 32),
@@ -188,9 +199,14 @@ class _ProfileTabState extends State<ProfileTab> {
             _buildListTile('About App', Icons.info_outline, () {}),
             const SizedBox(height: 24),
             TextButton(
-              onPressed: () {
-                // TODO: Logout logic
-                Navigator.of(context).popUntil((route) => route.isFirst);
+              onPressed: () async {
+                await const FlutterSecureStorage().delete(key: 'jwt');
+                if (mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    (route) => false,
+                  );
+                }
               },
               child: const Text('Logout', style: TextStyle(color: Colors.red)),
             ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:dio/dio.dart';
 import '../styles/app_colors.dart';
 import '../../core/api/api_client.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -38,8 +39,12 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (mounted) {
+        String message = 'Login failed: Connection error';
+        if (e is DioException && e.response != null && e.response?.data != null) {
+          message = 'Login failed: ${e.response?.data['message'] ?? 'Unknown error'}';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('로그인 실패: $e')),
+          SnackBar(content: Text(message)),
         );
       }
     } finally {
@@ -107,11 +112,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
               ),
               const SizedBox(height: 32),
-              _buildSocialButton('Google', const Color(0xFFDB4437), Icons.login),
+              _buildSocialButton('Google', const Color(0xFFDB4437)),
               const SizedBox(height: 12),
-              _buildSocialButton('Naver', const Color(0xFF03C75A), Icons.account_circle),
+              _buildSocialButton('Naver', const Color(0xFF03C75A)),
               const SizedBox(height: 12),
-              _buildSocialButton('Kakao', const Color(0xFFFEE500), Icons.chat, textColor: Colors.black87),
+              _buildSocialButton('Kakao', const Color(0xFFFEE500), textColor: Colors.black87),
               const SizedBox(height: 32),
               TextButton(
                 onPressed: () => Navigator.push(
@@ -130,15 +135,22 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildSocialButton(String label, Color color, IconData icon, {Color textColor = Colors.white}) {
-    return ElevatedButton.icon(
+  Widget _buildSocialButton(String label, Color color, {Color textColor = Colors.white}) {
+    return ElevatedButton(
       onPressed: () {},
-      icon: Icon(icon, color: textColor),
-      label: Text('Continue with $label', style: TextStyle(color: textColor)),
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 0,
+      ),
+      child: Text(
+        'Continue with $label',
+        style: TextStyle(
+          color: textColor,
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

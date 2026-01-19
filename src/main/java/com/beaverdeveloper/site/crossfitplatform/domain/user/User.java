@@ -32,6 +32,18 @@ public class User extends BaseEntity {
     @Column(name = "box_id")
     private Long boxId;
 
+    @Column
+    private String picture;
+
+    @Column(nullable = false)
+    private boolean isVerified;
+
+    public User update(String name, String picture) {
+        this.nickname = name;
+        this.picture = picture;
+        return this;
+    }
+
     public void updateNickname(String nickname) {
         this.nickname = nickname;
     }
@@ -41,6 +53,10 @@ public class User extends BaseEntity {
     }
 
     public void upgradeToPremium() {
-        this.role = UserRole.PREMIUM;
+        if (this.role == UserRole.USER) {
+            this.role = UserRole.PREMIUM_USER;
+        } else if (this.role == UserRole.COACH) {
+            this.role = UserRole.PREMIUM_COACH;
+        }
     }
 }

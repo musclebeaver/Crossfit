@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../styles/app_colors.dart';
 import '../../core/api/api_client.dart';
 
@@ -19,6 +20,11 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
 
   // Counter state
   int _counter = 0;
+  final _repsController = TextEditingController();
+
+  // Manual Time state
+  final _minController = TextEditingController();
+  final _secController = TextEditingController();
 
   // Weight state
   final _weightController = TextEditingController();
@@ -29,6 +35,9 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _repsController.dispose();
+    _minController.dispose();
+    _secController.dispose();
     _weightController.dispose();
     super.dispose();
   }
@@ -71,9 +80,20 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
     final type = widget.wod['type'];
 
     if (type == 'FOR_TIME') {
-      resultValue = _stopwatch.elapsedMilliseconds / 1000.0;
+      // Prioritize manual input if provided
+      if (_minController.text.isNotEmpty || _secController.text.isNotEmpty) {
+        int mins = int.tryParse(_minController.text) ?? 0;
+        int secs = int.tryParse(_secController.text) ?? 0;
+        resultValue = (mins * 60 + secs).toDouble();
+      } else {
+        resultValue = _stopwatch.elapsedMilliseconds / 1000.0;
+      }
     } else if (type == 'AMRAP') {
-      resultValue = _counter.toDouble();
+      if (_repsController.text.isNotEmpty) {
+        resultValue = double.tryParse(_repsController.text) ?? 0;
+      } else {
+        resultValue = _counter.toDouble();
+      }
     } else if (type == 'MAX_WEIGHT') {
       resultValue = double.tryParse(_weightController.text) ?? 0;
     }
@@ -93,12 +113,24 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
 
       if (res.data['success']) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Record saved!'), backgroundColor: Colors.green));
-          Navigator.pop(context, true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Record saved!'), backgroundColor: Colors.green)
+          );
+          // Go back to the main screen (WodTab)
+          Navigator.of(context).popUntil((route) => route.isFirst);
         }
       }
     } catch (e) {
       debugPrint("Save Record Error: $e");
+      if (mounted) {
+        String message = 'Failed to save record: Connection error';
+        if (e is DioException && e.response != null && e.response?.data != null) {
+          message = 'Failed to save record: ${e.response?.data['message'] ?? 'Unknown error'}';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -141,7 +173,7 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
               ),
               child: _isSaving 
                 ? const CircularProgressIndicator(color: Colors.white)
-                : const Text('Save Record', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
+                : const Text('Record Result', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -195,6 +227,36 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 32),
+        const Text('OR Manual Entry (Min : Sec)', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 80,
+              child: TextField(
+                controller: _minController,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                decoration: InputDecoration(hintText: 'Min', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Text(':', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            ),
+            SizedBox(
+              width: 80,
+              child: TextField(
+                controller: _secController,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                decoration: InputDecoration(hintText: 'Sec', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -210,18 +272,43 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _buildCircleButton(
-              onPressed: () => setState(() { if(_counter > 0) _counter--; }),
+              onPressed: () => setState(() { 
+                if(_counter > 0) {
+                  _counter--;
+                  _repsController.text = _counter.toString();
+                }
+              }),
               icon: Icons.remove,
               color: Colors.red.withOpacity(0.8),
             ),
             const SizedBox(width: 40),
             _buildCircleButton(
-              onPressed: () => setState(() => _counter++),
+              onPressed: () => setState(() {
+                _counter++;
+                _repsController.text = _counter.toString();
+              }),
               icon: Icons.add,
               color: AppColors.primary,
               size: 80,
             ),
           ],
+        ),
+        const SizedBox(height: 32),
+        const Text('OR Manual Entry', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: 120,
+          child: TextField(
+            controller: _repsController,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            onChanged: (val) {
+              setState(() {
+                _counter = int.tryParse(val) ?? 0;
+              });
+            },
+            decoration: InputDecoration(hintText: 'Reps', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+          ),
         ),
       ],
     );

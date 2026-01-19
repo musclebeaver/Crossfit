@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../styles/app_colors.dart';
 import '../../core/api/api_client.dart';
 
@@ -17,7 +18,7 @@ class _BoxRegistrationScreenState extends State<BoxRegistrationScreen> {
 
   Future<void> _handleRegister() async {
     if (_nameController.text.isEmpty || _locationController.text.isEmpty || _businessNumberController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('모든 필드를 입력해 주세요.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in all fields.')));
       return;
     }
 
@@ -31,12 +32,19 @@ class _BoxRegistrationScreenState extends State<BoxRegistrationScreen> {
 
       if (res.data['success']) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('박스 등록 신청이 완료되었습니다.')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Box registration application submitted successfully.')));
           Navigator.pop(context, true);
         }
       }
     } catch (e) {
       debugPrint("Box Register Error: $e");
+      if (mounted) {
+        String message = 'Failed to register box: Connection error';
+        if (e is DioException && e.response != null && e.response?.data != null) {
+          message = 'Failed to register box: ${e.response?.data['message'] ?? 'Unknown error'}';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

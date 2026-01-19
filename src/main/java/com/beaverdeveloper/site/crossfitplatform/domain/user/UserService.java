@@ -12,11 +12,19 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
+    private final EmailVerificationRepository emailVerificationRepository;
+
+    @org.springframework.beans.factory.annotation.Value("${app.auth.verify-email}")
+    private boolean verifyEmailEnabled;
 
     @Transactional
     public void signUp(String email, String password, String nickname, UserRole role) {
         if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("Email already exists");
+        }
+
+        if (verifyEmailEnabled && !emailVerificationRepository.existsByEmailAndIsVerifiedTrue(email)) {
+            throw new IllegalArgumentException("Email verification is required");
         }
 
         User user = User.builder()

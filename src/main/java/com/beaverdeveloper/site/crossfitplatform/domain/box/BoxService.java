@@ -45,6 +45,13 @@ public class BoxService {
         boxMemberRepository.save(member);
     }
 
+    public List<BoxMember> getAllMembers(Long boxId, String nickname) {
+        if (nickname != null && !nickname.isEmpty()) {
+            return boxMemberRepository.findByBoxIdAndUserNicknameContainingIgnoreCase(boxId, nickname);
+        }
+        return boxMemberRepository.findAllByBoxId(boxId);
+    }
+
     public List<BoxMember> getPendingMembers(Long boxId) {
         return boxMemberRepository.findAllByBoxIdAndStatus(boxId, BoxMemberStatus.PENDING);
     }

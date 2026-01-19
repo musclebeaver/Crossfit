@@ -29,6 +29,14 @@ public class Box extends BaseEntity {
     @Column(name = "is_verified", nullable = false)
     private boolean isVerified;
 
+    @Builder.Default
+    @Column(name = "is_auto_wod_enabled", nullable = false)
+    private boolean isAutoWodEnabled = true;
+
+    public void updateAutoWod(boolean enabled) {
+        this.isAutoWodEnabled = enabled;
+    }
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id")
     private User owner;

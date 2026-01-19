@@ -35,11 +35,17 @@ public class RecordController {
                         @RequestBody RecordRequest request,
                         @AuthenticationPrincipal UserDetails userDetails) {
 
+                if (request.getWodId() == null) {
+                        throw new IllegalArgumentException("WOD ID must not be null");
+                }
+
                 User user = userRepository.findByEmail(userDetails.getUsername())
-                                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                                .orElseThrow(() -> new IllegalArgumentException(
+                                                "User not found: " + userDetails.getUsername()));
 
                 Wod wod = wodRepository.findById(request.getWodId())
-                                .orElseThrow(() -> new IllegalArgumentException("Wod not found"));
+                                .orElseThrow(() -> new IllegalArgumentException(
+                                                "WOD not found with ID: " + request.getWodId()));
 
                 Record record = Record.builder()
                                 .userId(user.getId())
@@ -52,25 +58,16 @@ public class RecordController {
                 return ApiResponse.success(recordService.registerRecord(record));
         }
 
-        @Operation(summary = "Get Real-time Rankings for WOD")
+        @Operation(summary = "Get Real-time Rankings for WOD (Paginated)")
         @GetMapping("/rankings/{wodId}")
         public ApiResponse<List<RankingResponse>> getRankings(
                         @PathVariable Long wodId,
                         @RequestParam(required = false) Long boxId,
-                        @RequestParam(defaultValue = "10") int limit) {
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "20") int size,
+                        @RequestParam(required = false) String nickname) {
 
-                Set<ZSetOperations.TypedTuple<Object>> results = recordService.getTopRankings(wodId, boxId, limit);
-
-                List<RankingResponse> response = results.stream()
-                                .map(tuple -> {
-                                        Long userId = Long.valueOf((String) tuple.getValue());
-                                        String nickname = userRepository.findById(userId)
-                                                        .map(User::getNickname)
-                                                        .orElse("Unknown");
-                                        return new RankingResponse(userId, nickname, tuple.getScore());
-                                })
-                                .collect(Collectors.toList());
-
+                List<RankingResponse> response = recordService.getRankings(wodId, boxId, page, size, nickname);
                 return ApiResponse.success(response);
         }
 
@@ -103,15 +100,54 @@ public class RecordController {
         }
 
         @Getter
-        @AllArgsConstructor
         public static class RankingResponse {
                 private Long userId;
                 private String nickname;
                 private Double score;
+                private Integer rank;
+                private String displayValue;
+                private boolean isRx;
+
+                public RankingResponse(Long userId, String nickname, Double score, Integer rank, String displayValue,
+                                boolean isRx) {
+                        this.userId = userId;
+                        this.nickname = nickname;
+                        this.score = score;
+                        this.rank = rank;
+                        this.displayValue = displayValue;
+                        this.isRx = isRx;
+                }
+
+                public RankingResponse() {
+                }
+
+                // Manual Getters
+                public Long getUserId() {
+                        return userId;
+                }
+
+                public String getNickname() {
+                        return nickname;
+                }
+
+                public Double getScore() {
+                        return score;
+                }
+
+                public Integer getRank() {
+                        return rank;
+                }
+
+                public String getDisplayValue() {
+                        return displayValue;
+                }
+
+                public boolean isRx() {
+                        return isRx;
+                }
         }
 
         @Getter
-        @Builder
         public static class RankingHistoryResponse {
                 private Long id;
                 private Long wodId;
@@ -120,15 +156,49 @@ public class RecordController {
                 private boolean isRx;
                 private LocalDate date;
 
+                public RankingHistoryResponse(Long id, Long wodId, Integer rank, Double score, boolean isRx,
+                                LocalDate date) {
+                        this.id = id;
+                        this.wodId = wodId;
+                        this.rank = rank;
+                        this.score = score;
+                        this.isRx = isRx;
+                        this.date = date;
+                }
+
                 public static RankingHistoryResponse from(RankingHistory history) {
-                        return RankingHistoryResponse.builder()
-                                        .id(history.getId())
-                                        .wodId(history.getWodId())
-                                        .rank(history.getRank())
-                                        .score(history.getScore())
-                                        .isRx(history.isRx())
-                                        .date(history.getDate())
-                                        .build();
+                        return new RankingHistoryResponse(
+                                        history.getId(),
+                                        history.getWodId(),
+                                        history.getRank(),
+                                        history.getScore(),
+                                        history.isRx(),
+                                        history.getDate());
+                }
+
+                // Manual Getters
+                public Long getId() {
+                        return id;
+                }
+
+                public Long getWodId() {
+                        return wodId;
+                }
+
+                public Integer getRank() {
+                        return rank;
+                }
+
+                public Double getScore() {
+                        return score;
+                }
+
+                public boolean isRx() {
+                        return isRx;
+                }
+
+                public LocalDate getDate() {
+                        return date;
                 }
         }
 }

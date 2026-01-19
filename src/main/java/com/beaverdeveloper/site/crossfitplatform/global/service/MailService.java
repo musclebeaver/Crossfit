@@ -19,4 +19,21 @@ public class MailService {
         message.setText(text);
         mailSender.send(message);
     }
+
+    public void sendHtmlEmail(String to, String subject, String htmlContent) {
+        try {
+            jakarta.mail.internet.MimeMessage message = mailSender.createMimeMessage();
+            org.springframework.mail.javamail.MimeMessageHelper helper = new org.springframework.mail.javamail.MimeMessageHelper(
+                    message, true, "UTF-8");
+
+            helper.setFrom("no-reply@crossfit-platform.com");
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlContent, true); // true indicates HTML
+
+            mailSender.send(message);
+        } catch (jakarta.mail.MessagingException e) {
+            throw new RuntimeException("Failed to send HTML email", e);
+        }
+    }
 }

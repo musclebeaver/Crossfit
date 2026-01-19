@@ -96,10 +96,12 @@ public class BoxController {
         return ApiResponse.success("Application submitted");
     }
 
-    @Operation(summary = "Get Pending Members (Box Owner Only)")
-    @GetMapping("/{boxId}/members/pending")
-    public ApiResponse<List<MemberResponse>> getPendingMembers(@PathVariable Long boxId) {
-        List<BoxMember> members = boxService.getPendingMembers(boxId);
+    @Operation(summary = "Get All Members of a Box (Box Owner Only)")
+    @GetMapping("/{boxId}/members")
+    public ApiResponse<List<MemberResponse>> getBoxMembers(
+            @PathVariable Long boxId,
+            @RequestParam(required = false) String nickname) {
+        List<BoxMember> members = boxService.getAllMembers(boxId, nickname);
         List<MemberResponse> response = members.stream()
                 .map(m -> new MemberResponse(m.getId(), m.getUser().getNickname(), m.getStatus()))
                 .collect(Collectors.toList());
@@ -120,6 +122,18 @@ public class BoxController {
         return ApiResponse.success("Process completed");
     }
 
+    @Operation(summary = "Toggle Auto WOD Generation (Box Owner Only)")
+    @PatchMapping("/{boxId}/auto-wod")
+    public ApiResponse<Boolean> toggleAutoWod(
+            @PathVariable Long boxId,
+            @RequestParam boolean enabled) {
+        Box box = boxRepository.findById(boxId)
+                .orElseThrow(() -> new IllegalArgumentException("Box not found"));
+        box.updateAutoWod(enabled);
+        boxRepository.save(box);
+        return ApiResponse.success(enabled);
+    }
+
     @Getter
     public static class BoxRegisterRequest {
         private String name;
@@ -135,6 +149,7 @@ public class BoxController {
         private String name;
         private String location;
         private boolean isVerified;
+        private boolean isAutoWodEnabled;
 
         public static BoxResponse from(Box box) {
             return BoxResponse.builder()
@@ -142,6 +157,7 @@ public class BoxController {
                     .name(box.getName())
                     .location(box.getLocation())
                     .isVerified(box.isVerified())
+                    .isAutoWodEnabled(box.isAutoWodEnabled())
                     .build();
         }
     }

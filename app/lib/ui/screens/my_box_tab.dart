@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../styles/app_colors.dart';
 import '../../core/api/api_client.dart';
+import 'box_registration_screen.dart';
+import 'box_management_screen.dart';
 
 class MyBoxTab extends StatefulWidget {
   const MyBoxTab({super.key});
@@ -8,9 +11,6 @@ class MyBoxTab extends StatefulWidget {
   @override
   State<MyBoxTab> createState() => _MyBoxTabState();
 }
-
-import 'box_registration_screen.dart';
-import 'box_management_screen.dart';
 
 class _MyBoxTabState extends State<MyBoxTab> {
   final TextEditingController _searchController = TextEditingController();
@@ -33,7 +33,8 @@ class _MyBoxTabState extends State<MyBoxTab> {
       if (profileRes.data['success']) {
         _userProfile = profileRes.data['data'];
         
-        if (_userProfile['role'] == 'COACH') {
+        final role = _userProfile['role'].toString();
+        if (role.contains('COACH')) {
           final ownedRes = await ApiClient().dio.get('/boxes/mine');
           if (ownedRes.data['success']) {
             _ownedBoxes = ownedRes.data['data'];
@@ -78,6 +79,13 @@ class _MyBoxTabState extends State<MyBoxTab> {
       }
     } catch (e) {
       debugPrint("Apply Box Error: $e");
+      if (mounted) {
+        String message = 'Failed to submit application: Connection error';
+        if (e is DioException && e.response != null && e.response?.data != null) {
+          message = 'Failed to submit application: ${e.response?.data['message'] ?? 'Unknown error'}';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      }
     }
   }
 
@@ -92,7 +100,7 @@ class _MyBoxTabState extends State<MyBoxTab> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          if (_userProfile['role'] == 'COACH')
+          if (_userProfile['role'].toString().contains('COACH'))
             TextButton.icon(
               onPressed: () async {
                 final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const BoxRegistrationScreen()));
@@ -108,7 +116,7 @@ class _MyBoxTabState extends State<MyBoxTab> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            if (_userProfile['role'] == 'COACH') ..._buildCoachUI() else ..._buildUserUI(),
+            if (_userProfile['role'].toString().contains('COACH')) ..._buildCoachUI() else ..._buildUserUI(),
           ],
         ),
       ),

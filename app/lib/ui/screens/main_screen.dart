@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import '../styles/app_colors.dart';
 import 'wod_tab.dart';
 import 'ranking_tab.dart';
