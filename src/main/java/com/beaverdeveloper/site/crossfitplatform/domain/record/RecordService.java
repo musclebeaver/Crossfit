@@ -27,6 +27,13 @@ public class RecordService {
     @Transactional
     public Long registerRecord(Record record) {
         Record savedRecord = recordRepository.save(record);
+
+        // Award point to user (participation score)
+        userRepository.findById(record.getUserId()).ifPresent(user -> {
+            user.addPoints(1L);
+            userRepository.save(user); // JPA Dirty Checking might work, but explicit save for safety
+        });
+
         updateRedisRanking(savedRecord);
         return savedRecord.getId();
     }
@@ -93,7 +100,7 @@ public class RecordService {
                         boolean isRx = strategy.isRxFromScore(score);
 
                         return new RecordController.RankingResponse(u.getId(), u.getNickname(), score,
-                                rank != null ? rank.intValue() + 1 : null, displayValue, isRx);
+                                rank != null ? rank.intValue() + 1 : null, displayValue, isRx, u.getTier().name());
                     })
                     .filter(Objects::nonNull)
                     .sorted((a, b) -> b.getScore().compareTo(a.getScore()))
@@ -114,16 +121,18 @@ public class RecordService {
                     .map(tuple -> {
                         Long userId = Long.valueOf((String) tuple.getValue());
                         Double score = tuple.getScore();
-                        String userNickname = userRepository.findById(userId)
-                                .map(com.beaverdeveloper.site.crossfitplatform.domain.user.User::getNickname)
-                                .orElse("Unknown");
+                        com.beaverdeveloper.site.crossfitplatform.domain.user.User user = userRepository
+                                .findById(userId)
+                                .orElse(null);
+                        String userNickname = user != null ? user.getNickname() : "Unknown";
+                        String userTier = user != null ? user.getTier().name() : "NEWBIE";
 
                         double resultValue = strategy.getResultValueFromScore(score);
                         String displayValue = strategy.formatRecord(resultValue);
                         boolean isRx = strategy.isRxFromScore(score);
 
                         return new RecordController.RankingResponse(userId, userNickname, score,
-                                currentRank[0]++, displayValue, isRx);
+                                currentRank[0]++, displayValue, isRx, userTier);
                     })
                     .collect(Collectors.toList());
         }

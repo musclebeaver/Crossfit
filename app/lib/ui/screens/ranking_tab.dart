@@ -377,11 +377,13 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
       title: Row(
         children: [
           Text(item['nickname'], style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(width: 6),
+          _buildTierBadge(item['tier']),
           if (item['isRx'] == true)
             Padding(
-              padding: const EdgeInsets.only(left: 8.0),
+              padding: const EdgeInsets.only(left: 4.0),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withOpacity(0.1),
                   border: Border.all(color: AppColors.primary, width: 0.5),
@@ -422,6 +424,32 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
           const SizedBox(height: 16),
           Text(text, style: const TextStyle(color: AppColors.textSecondary, fontSize: 16)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTierBadge(String? tier) {
+    if (tier == null) return const SizedBox.shrink();
+    
+    Color color;
+    switch (tier) {
+      case 'LEGEND': color = Colors.orange; break;
+      case 'ELITE': color = Colors.deepPurple; break;
+      case 'PRO': color = Colors.red; break;
+      case 'AMATEUR': color = Colors.green; break;
+      default: color = Colors.blueGrey;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        border: Border.all(color: color, width: 0.5),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        tier,
+        style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.bold),
       ),
     );
   }

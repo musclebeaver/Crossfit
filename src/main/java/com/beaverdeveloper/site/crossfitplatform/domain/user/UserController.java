@@ -31,6 +31,8 @@ public class UserController {
                 .nickname(user.getNickname())
                 .role(user.getRole())
                 .boxId(user.getBoxId())
+                .points(user.getPoints())
+                .tier(user.getTier())
                 .build());
     }
 
@@ -78,5 +80,7 @@ public class UserController {
         private String nickname;
         private UserRole role;
         private Long boxId;
+        private Long points;
+        private UserTier tier;
     }
 }

@@ -36,6 +36,21 @@ public class UserDataInitializer implements CommandLineRunner {
                 log.info("Initialized test user: {} with role: {}", email, role);
             }
         }
+
+        // Admin 계정 추가
+        String adminEmail = "admin@naver.com";
+        if (userRepository.findByEmail(adminEmail).isEmpty()) {
+            User admin = User.builder()
+                    .email(adminEmail)
+                    .password(passwordEncoder.encode("admin"))
+                    .nickname("Administrator")
+                    .role(UserRole.ADMIN)
+                    .isVerified(true)
+                    .build();
+            userRepository.save(admin);
+            log.info("Initialized admin user: {}", adminEmail);
+        }
+
         log.info("Test user initialization completed.");
     }
 }

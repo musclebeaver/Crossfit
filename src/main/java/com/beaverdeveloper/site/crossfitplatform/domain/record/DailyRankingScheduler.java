@@ -22,6 +22,7 @@ public class DailyRankingScheduler {
     private final WodRepository wodRepository;
     private final RecordService recordService;
     private final RankingHistoryRepository rankingHistoryRepository;
+    private final com.beaverdeveloper.site.crossfitplatform.domain.user.UserRepository userRepository;
     private final RedisTemplate<String, Object> redisTemplate;
 
     /**
@@ -56,6 +57,25 @@ public class DailyRankingScheduler {
                         .build();
 
                 rankingHistoryRepository.save(history);
+
+                // Award rank-based points
+                int rankValue = ranking.getRank() != null ? ranking.getRank() : 0;
+                final long pointsToAward;
+                if (rankValue >= 1 && rankValue <= 10)
+                    pointsToAward = 20;
+                else if (rankValue >= 11 && rankValue <= 100)
+                    pointsToAward = 10;
+                else if (rankValue >= 101 && rankValue <= 1000)
+                    pointsToAward = 5;
+                else
+                    pointsToAward = 0;
+
+                if (pointsToAward > 0) {
+                    userRepository.findById(userId).ifPresent(user -> {
+                        user.addPoints(pointsToAward);
+                        userRepository.save(user);
+                    });
+                }
             }
             log.info("WOD ID {} ranking snapshot completed. Total {} users.", wod.getId(), rankings.size());
         }

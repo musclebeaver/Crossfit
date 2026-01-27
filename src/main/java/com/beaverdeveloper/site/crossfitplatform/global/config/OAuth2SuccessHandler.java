@@ -20,6 +20,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     private final JwtProvider jwtProvider;
 
+    @org.springframework.beans.factory.annotation.Value("${app.redirect-url}")
+    private String redirectUrl;
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
             Authentication authentication) throws IOException, ServletException {
@@ -41,7 +44,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         String token = jwtProvider.createToken(email, UserRole.USER);
 
-        String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:8082/oauth2/redirect")
+        // 프론트엔드의 OAuth2 리다이렉트 처리 주소로 토큰 전달
+        String targetUrl = UriComponentsBuilder.fromUriString(redirectUrl)
                 .queryParam("token", token)
                 .build().toUriString();
 

@@ -40,6 +40,7 @@ services:
       - KAKAO_CLIENT_SECRET=${KAKAO_CLIENT_SECRET:-}
       - NAVER_CLIENT_ID=${NAVER_CLIENT_ID:-}
       - NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET:-}
+      - REDIRECT_URL=${REDIRECT_URL:-http://localhost:8080/oauth2/redirect}
     depends_on:
       mysql:
         condition: service_healthy

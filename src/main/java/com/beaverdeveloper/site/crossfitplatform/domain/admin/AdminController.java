@@ -61,6 +61,25 @@ public class AdminController {
                 .collect(Collectors.toList()));
     }
 
+    @Operation(summary = "Toggle Box Auto WOD (AI)")
+    @PatchMapping("/boxes/{boxId}/auto-wod")
+    public ApiResponse<String> toggleAutoWod(@PathVariable Long boxId, @RequestParam boolean enabled) {
+        Box box = boxRepository.findById(boxId)
+                .orElseThrow(() -> new IllegalArgumentException("Box not found"));
+
+        box.updateAutoWod(enabled);
+        boxRepository.save(box);
+        return ApiResponse.success("Box auto WOD status updated to: " + enabled);
+    }
+
+    private final com.beaverdeveloper.site.crossfitplatform.domain.wod.WodRepository wodRepository;
+
+    @Operation(summary = "Get all global WODs")
+    @GetMapping("/global-wods")
+    public ApiResponse<List<com.beaverdeveloper.site.crossfitplatform.domain.wod.Wod>> getGlobalWods() {
+        return ApiResponse.success(wodRepository.findByBoxIdIsNull());
+    }
+
     @Getter
     @AllArgsConstructor
     public static class BoxAdminResponse {
@@ -68,11 +87,12 @@ public class AdminController {
         private String name;
         private String businessNumber;
         private boolean isVerified;
+        private boolean isAutoWodEnabled;
         private String ownerEmail;
 
         public static BoxAdminResponse from(Box box) {
             return new BoxAdminResponse(box.getId(), box.getName(), box.getBusinessNumber(),
-                    box.isVerified(), box.getOwner().getEmail());
+                    box.isVerified(), box.isAutoWodEnabled(), box.getOwner().getEmail());
         }
     }
 
@@ -83,9 +103,12 @@ public class AdminController {
         private String email;
         private String nickname;
         private String role;
+        private Long points;
+        private String tier;
 
         public static UserAdminResponse from(User user) {
-            return new UserAdminResponse(user.getId(), user.getEmail(), user.getNickname(), user.getRole().name());
+            return new UserAdminResponse(user.getId(), user.getEmail(), user.getNickname(), user.getRole().name(),
+                    user.getPoints(), user.getTier().name());
         }
     }
 }

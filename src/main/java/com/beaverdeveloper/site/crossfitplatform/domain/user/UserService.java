@@ -13,6 +13,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
     private final EmailVerificationRepository emailVerificationRepository;
+    private final LoginAttemptService loginAttemptService;
 
     @org.springframework.beans.factory.annotation.Value("${app.auth.verify-email}")
     private boolean verifyEmailEnabled;
@@ -27,6 +28,12 @@ public class UserService {
             throw new IllegalArgumentException("Email verification is required");
         }
 
+        // 비밀번호 복잡도 검증 (8자 이상, 영문+숫자+특수문자)
+        if (!isValidPassword(password)) {
+            throw new IllegalArgumentException(
+                    "Password must be at least 8 characters long and contain letters, numbers, and special characters.");
+        }
+
         User user = User.builder()
                 .email(email)
                 .password(passwordEncoder.encode(password))
@@ -37,19 +44,36 @@ public class UserService {
         userRepository.save(user);
     }
 
+    private boolean isValidPassword(String password) {
+        if (password == null || password.length() < 8)
+            return false;
+        String regex = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,}$";
+        return password.matches(regex);
+    }
+
     public boolean isEmailDuplicated(String email) {
         return userRepository.existsByEmail(email);
     }
 
     public String login(String email, String password) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new IllegalArgumentException("Invalid password");
+        if (loginAttemptService.isBlocked(email)) {
+            throw new IllegalArgumentException("Too many login attempts. Please try again after 15 minutes.");
         }
 
-        return jwtProvider.createToken(user.getEmail(), user.getRole());
+        try {
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
+
+            if (!passwordEncoder.matches(password, user.getPassword()) || user.getProvider() != AuthProvider.LOCAL) {
+                throw new IllegalArgumentException("Invalid email or password");
+            }
+
+            loginAttemptService.loginSucceeded(email);
+            return jwtProvider.createToken(user.getEmail(), user.getRole());
+        } catch (IllegalArgumentException e) {
+            loginAttemptService.loginFailed(email);
+            throw e;
+        }
     }
 
     @Transactional

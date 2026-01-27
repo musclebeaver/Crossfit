@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart'; // TextInputFormatter 추가
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../styles/app_colors.dart';
 import '../../core/api/api_client.dart';
@@ -178,11 +179,22 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   void _checkPasswordMatch() {
-    if (_passwordController.text != _confirmPasswordController.text) {
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    if (password.isNotEmpty && !_isValidPassword(password)) {
+      setState(() => _passwordError = '8+ chars, with letters, numbers & special chars.');
+    } else if (password != confirmPassword) {
       setState(() => _passwordError = 'Passwords do not match.');
     } else {
       setState(() => _passwordError = null);
     }
+  }
+
+  bool _isValidPassword(String password) {
+    if (password.length < 8) return false;
+    final regex = RegExp(r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$');
+    return regex.hasMatch(password);
   }
 
   Future<void> _handleSignup() async {
@@ -191,6 +203,13 @@ class _SignupScreenState extends State<SignupScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please verify your email first.')));
       return;
     }
+    
+    if (!_isValidPassword(_passwordController.text)) {
+      setState(() => _passwordError = 'Weak password. Please check requirements.');
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password is too weak.')));
+      return;
+    }
+
     if (_passwordError != null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please check your password.')));
       return;
@@ -300,6 +319,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     errorText: _emailError,
                     helperText: _emailSuccess,
                     enabled: !_isEmailVerified,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9@._-]')),
+                    ],
                   ),
                 ),
                 if (_isEmailValid && _emailError == null)
@@ -362,7 +384,11 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
             ],
             const SizedBox(height: 16),
-            _buildTextField(_passwordController, 'Password', Icons.lock, obscure: true),
+            _buildTextField(_passwordController, 'Password', Icons.lock, obscure: true, 
+              inputFormatters: [
+                FilteringTextInputFormatter.deny(RegExp(r'[ㄱ-ㅎ|ㅏ-ㅣ|가-힣\u4e00-\u9fa5\u3040-\u30ff]')), // 한글, 한자, 일어 차단
+              ]
+            ),
             const SizedBox(height: 16),
             _buildTextField(
               _confirmPasswordController, 
@@ -371,6 +397,9 @@ class _SignupScreenState extends State<SignupScreen> {
               obscure: true,
               focusNode: _passwordConfirmFocusNode,
               errorText: _passwordError,
+              inputFormatters: [
+                FilteringTextInputFormatter.deny(RegExp(r'[ㄱ-ㅎ|ㅏ-ㅣ|가-힣\u4e00-\u9fa5\u3040-\u30ff]')),
+              ],
             ),
             const SizedBox(height: 16),
             _buildTextField(_nicknameController, 'Nickname', Icons.person),
@@ -417,12 +446,13 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Widget _buildTextField(TextEditingController controller, String label, IconData icon, 
-      {bool obscure = false, FocusNode? focusNode, String? errorText, String? helperText, bool enabled = true}) {
+      {bool obscure = false, FocusNode? focusNode, String? errorText, String? helperText, bool enabled = true, List<TextInputFormatter>? inputFormatters}) {
     return TextField(
       controller: controller,
       focusNode: focusNode,
       obscureText: obscure,
       enabled: enabled,
+      inputFormatters: inputFormatters,
       style: TextStyle(color: enabled ? AppColors.textPrimary : AppColors.textSecondary),
       decoration: InputDecoration(
         labelText: label,

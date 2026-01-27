@@ -107,15 +107,17 @@ public class RecordController {
                 private Integer rank;
                 private String displayValue;
                 private boolean isRx;
+                private String tier;
 
                 public RankingResponse(Long userId, String nickname, Double score, Integer rank, String displayValue,
-                                boolean isRx) {
+                                boolean isRx, String tier) {
                         this.userId = userId;
                         this.nickname = nickname;
                         this.score = score;
                         this.rank = rank;
                         this.displayValue = displayValue;
                         this.isRx = isRx;
+                        this.tier = tier;
                 }
 
                 public RankingResponse() {
@@ -144,6 +146,10 @@ public class RecordController {
 
                 public boolean isRx() {
                         return isRx;
+                }
+
+                public String getTier() {
+                        return tier;
                 }
         }
 

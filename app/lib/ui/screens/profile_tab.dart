@@ -168,7 +168,14 @@ class _ProfileTabState extends State<ProfileTab> {
               _userProfile['nickname'],
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
             ),
+            const SizedBox(height: 8),
+            _buildTierBadge(_userProfile['tier'].toString()),
             const SizedBox(height: 4),
+            Text(
+              '${_userProfile['points']} Total Points',
+              style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -252,6 +259,32 @@ class _ProfileTabState extends State<ProfileTab> {
       title: Text(title, style: const TextStyle(color: AppColors.textPrimary)),
       trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
       onTap: onTap,
+    );
+  }
+
+  Widget _buildTierBadge(String? tier) {
+    if (tier == null) return const SizedBox.shrink();
+    
+    Color color;
+    switch (tier) {
+      case 'LEGEND': color = Colors.orange; break;
+      case 'ELITE': color = Colors.deepPurple; break;
+      case 'PRO': color = Colors.red; break;
+      case 'AMATEUR': color = Colors.green; break;
+      default: color = Colors.blueGrey;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        border: Border.all(color: color, width: 1.0),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        tier,
+        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
+      ),
     );
   }
 }

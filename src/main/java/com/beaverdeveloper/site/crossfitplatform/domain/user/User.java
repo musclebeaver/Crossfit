@@ -22,6 +22,20 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private String password;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private AuthProvider provider = AuthProvider.LOCAL;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Long points = 0L;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private UserTier tier = UserTier.NEWBIE;
+
     @Column(nullable = false)
     private String nickname;
 
@@ -58,5 +72,10 @@ public class User extends BaseEntity {
         } else if (this.role == UserRole.COACH) {
             this.role = UserRole.PREMIUM_COACH;
         }
+    }
+
+    public void addPoints(Long points) {
+        this.points += points;
+        this.tier = UserTier.calculateTier(this.points);
     }
 }

@@ -1,5 +1,6 @@
 package com.beaverdeveloper.site.crossfitplatform.global.config;
 
+import com.beaverdeveloper.site.crossfitplatform.domain.user.AuthProvider;
 import com.beaverdeveloper.site.crossfitplatform.domain.user.UserRole;
 import lombok.Builder;
 import lombok.Getter;
@@ -13,15 +14,17 @@ public class OAuth2Attributes {
     private String name;
     private String email;
     private String picture;
+    private AuthProvider provider;
 
     @Builder
     public OAuth2Attributes(Map<String, Object> attributes, String nameAttributeKey, String name, String email,
-            String picture) {
+            String picture, AuthProvider provider) {
         this.attributes = attributes;
         this.nameAttributeKey = nameAttributeKey;
         this.name = name;
         this.email = email;
         this.picture = picture;
+        this.provider = provider;
     }
 
     public static OAuth2Attributes of(String registrationId, String userNameAttributeName,
@@ -41,6 +44,7 @@ public class OAuth2Attributes {
                 .picture((String) attributes.get("picture"))
                 .attributes(attributes)
                 .nameAttributeKey(userNameAttributeName)
+                .provider(AuthProvider.GOOGLE)
                 .build();
     }
 
@@ -54,6 +58,7 @@ public class OAuth2Attributes {
                 .picture((String) kakaoProfile.get("thumbnail_image_url"))
                 .attributes(attributes)
                 .nameAttributeKey(userNameAttributeName)
+                .provider(AuthProvider.KAKAO)
                 .build();
     }
 
@@ -66,6 +71,7 @@ public class OAuth2Attributes {
                 .picture((String) response.get("profile_image"))
                 .attributes(response)
                 .nameAttributeKey(userNameAttributeName)
+                .provider(AuthProvider.NAVER)
                 .build();
     }
 
@@ -73,7 +79,9 @@ public class OAuth2Attributes {
         return com.beaverdeveloper.site.crossfitplatform.domain.user.User.builder()
                 .nickname(name)
                 .email(email)
+                .password(java.util.UUID.randomUUID().toString()) // 소셜 사용자는 랜덤 패스워드 설정
                 .role(UserRole.USER)
+                .provider(provider)
                 .isVerified(true)
                 .build();
     }
