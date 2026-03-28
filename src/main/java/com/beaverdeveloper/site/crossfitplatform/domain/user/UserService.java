@@ -1,6 +1,7 @@
 package com.beaverdeveloper.site.crossfitplatform.domain.user;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,7 @@ public class UserService {
     private final JwtProvider jwtProvider;
     private final EmailVerificationRepository emailVerificationRepository;
     private final LoginAttemptService loginAttemptService;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @org.springframework.beans.factory.annotation.Value("${app.auth.verify-email}")
     private boolean verifyEmailEnabled;
@@ -55,7 +57,7 @@ public class UserService {
         return userRepository.existsByEmail(email);
     }
 
-    public String login(String email, String password) {
+    public AuthController.TokenResponse login(String email, String password) {
         if (loginAttemptService.isBlocked(email)) {
             throw new IllegalArgumentException("Too many login attempts. Please try again after 15 minutes.");
         }
@@ -69,11 +71,51 @@ public class UserService {
             }
 
             loginAttemptService.loginSucceeded(email);
-            return jwtProvider.createToken(user.getEmail(), user.getRole());
+
+            String accessToken = jwtProvider.createAccessToken(user.getEmail(), user.getRole());
+            String refreshToken = jwtProvider.createRefreshToken(user.getEmail());
+            saveRefreshToken(user.getEmail(), refreshToken);
+
+            return new AuthController.TokenResponse(accessToken, refreshToken);
         } catch (IllegalArgumentException e) {
             loginAttemptService.loginFailed(email);
             throw e;
         }
+    }
+
+    private void saveRefreshToken(String email, String refreshToken) {
+        long expirationMs = jwtProvider.getRemainingTimeMs(refreshToken);
+        redisTemplate.opsForValue().set("RT:" + email, refreshToken, expirationMs,
+                java.util.concurrent.TimeUnit.MILLISECONDS);
+    }
+
+    public AuthController.TokenResponse refresh(String refreshToken) {
+        if (!jwtProvider.validateToken(refreshToken)) {
+            throw new IllegalArgumentException("Invalid refresh token");
+        }
+        if (jwtProvider.isAccessToken(refreshToken)) {
+            throw new IllegalArgumentException("Access token cannot be used to refresh");
+        }
+
+        String email = jwtProvider.getEmail(refreshToken);
+        String redisToken = (String) redisTemplate.opsForValue().get("RT:" + email);
+
+        if (redisToken == null || !redisToken.equals(refreshToken)) {
+            // Compromised token detected
+            redisTemplate.delete("RT:" + email);
+            throw new IllegalArgumentException("Compromised or missing refresh token. Please login again.");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        // Rotation
+        String newAccessToken = jwtProvider.createAccessToken(email, user.getRole());
+        String newRefreshToken = jwtProvider.createRefreshToken(email);
+
+        saveRefreshToken(email, newRefreshToken);
+
+        return new AuthController.TokenResponse(newAccessToken, newRefreshToken);
     }
 
     @Transactional

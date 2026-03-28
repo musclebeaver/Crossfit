@@ -23,6 +23,10 @@ public interface RankingStrategy {
             return 0.0;
         return score >= 10_000_000.0 ? score - 10_000_000.0 : score;
     }
+
+    default boolean isCappedFromScore(Double score) {
+        return false;
+    }
 }
 
 @Component
@@ -69,16 +73,31 @@ class ForTimeRankingStrategy implements RankingStrategy {
 
     @Override
     public Double calculateRedisScore(Record record) {
-        double rxWeight = record.isRx() ? MAX_VALUE : 0.0;
-        return rxWeight + (MAX_VALUE - record.getResultValue());
+        double rxWeight = record.isRx() ? 20_000_000.0 : 0.0;
+        double finishedWeight = !record.isCapped() ? 10_000_000.0 : 0.0;
+        return rxWeight + finishedWeight + (MAX_VALUE - record.getResultValue());
     }
 
     @Override
     public Double getResultValueFromScore(Double score) {
         if (score == null)
             return 0.0;
-        double base = score >= MAX_VALUE ? score - MAX_VALUE : score;
+        double base = score;
+        if (base >= 20_000_000.0)
+            base -= 20_000_000.0;
+        if (base >= 10_000_000.0)
+            base -= 10_000_000.0;
         return MAX_VALUE - base;
+    }
+
+    @Override
+    public boolean isCappedFromScore(Double score) {
+        if (score == null)
+            return false;
+        double base = score;
+        if (base >= 20_000_000.0)
+            base -= 20_000_000.0;
+        return base < 10_000_000.0; // If finishedWeight was not added, base < 10,000,000
     }
 
     @Override
@@ -116,5 +135,32 @@ class MaxWeightRankingStrategy implements RankingStrategy {
         if (resultValue == null)
             return "0 kg";
         return resultValue.intValue() + " kg";
+    }
+}
+
+@Component
+class EmomRankingStrategy implements RankingStrategy {
+    @Override
+    public WodType getSupportedType() {
+        return WodType.EMOM;
+    }
+
+    @Override
+    public Comparator<Record> getComparator() {
+        return Comparator.comparing(Record::isRx).reversed()
+                .thenComparing(Record::getResultValue).reversed();
+    }
+
+    @Override
+    public Double calculateRedisScore(Record record) {
+        double rxWeight = record.isRx() ? 10_000_000.0 : 0.0;
+        return rxWeight + record.getResultValue();
+    }
+
+    @Override
+    public String formatRecord(Double resultValue) {
+        if (resultValue == null)
+            return "0";
+        return String.valueOf(resultValue.intValue());
     }
 }

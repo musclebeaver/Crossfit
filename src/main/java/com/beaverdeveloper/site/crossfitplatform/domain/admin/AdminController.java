@@ -25,6 +25,8 @@ public class AdminController {
 
     private final BoxRepository boxRepository;
     private final UserRepository userRepository;
+    private final com.beaverdeveloper.site.crossfitplatform.domain.wod.WodRepository wodRepository;
+    private final com.beaverdeveloper.site.crossfitplatform.domain.record.DailyRankingScheduler dailyRankingScheduler;
 
     @Operation(summary = "Get all boxes for verification")
     @GetMapping("/boxes")
@@ -72,12 +74,17 @@ public class AdminController {
         return ApiResponse.success("Box auto WOD status updated to: " + enabled);
     }
 
-    private final com.beaverdeveloper.site.crossfitplatform.domain.wod.WodRepository wodRepository;
-
     @Operation(summary = "Get all global WODs")
     @GetMapping("/global-wods")
     public ApiResponse<List<com.beaverdeveloper.site.crossfitplatform.domain.wod.Wod>> getGlobalWods() {
         return ApiResponse.success(wodRepository.findByBoxIdIsNull());
+    }
+    
+    @Operation(summary = "Force Trigger Daily Ranking (For Testing)")
+    @PostMapping("/trigger-ranking-scheduler")
+    public ApiResponse<String> triggerRankingScheduler() {
+        dailyRankingScheduler.snapshotDailyRankings();
+        return ApiResponse.success("Ranking scheduler triggered successfully.");
     }
 
     @Getter

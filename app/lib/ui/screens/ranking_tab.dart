@@ -20,7 +20,7 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
   bool _isLoading = true;
   bool _isMoreLoading = false;
   bool _hasMore = true;
-  int _currentPage = 0;
+  int? _nextCursor;
   final int _pageSize = 20;
 
   List<dynamic> _rankings = [];
@@ -60,7 +60,7 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
 
   Future<void> _resetAndFetch() async {
     setState(() {
-      _currentPage = 0;
+      _nextCursor = null;
       _rankings = [];
       _hasMore = true;
       _isLoading = true;
@@ -121,9 +121,12 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
 
     try {
       final queryParams = <String, dynamic>{
-        'page': _currentPage,
-        'size': _pageSize,
+        'limit': _pageSize,
       };
+      if (_nextCursor != null) {
+        queryParams['cursorRank'] = _nextCursor;
+      }
+      
       if (isBoxRanking) {
         queryParams['boxId'] = _userProfile['boxId'];
       }
@@ -133,11 +136,13 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
 
       final res = await ApiClient().dio.get('/records/rankings/$_selectedWodId', queryParameters: queryParams);
       if (res.data['success']) {
-        final List<dynamic> newEntries = res.data['data'];
+        final data = res.data['data'];
+        final List<dynamic> newEntries = data['content'] ?? [];
         setState(() {
           _rankings = newEntries;
+          _nextCursor = data['nextCursor'];
+          _hasMore = data['hasNext'] ?? false;
           _isLoading = false;
-          _hasMore = newEntries.length == _pageSize;
         });
       }
     } catch (e) {
@@ -148,14 +153,16 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
 
   Future<void> _fetchMoreRankings() async {
     setState(() => _isMoreLoading = true);
-    _currentPage++;
     
     final isBoxRanking = _tabController.index == 1;
     try {
       final queryParams = <String, dynamic>{
-        'page': _currentPage,
-        'size': _pageSize,
+        'limit': _pageSize,
       };
+      if (_nextCursor != null) {
+        queryParams['cursorRank'] = _nextCursor;
+      }
+
       if (isBoxRanking) {
         queryParams['boxId'] = _userProfile['boxId'];
       }
@@ -165,11 +172,13 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
 
       final res = await ApiClient().dio.get('/records/rankings/$_selectedWodId', queryParameters: queryParams);
       if (res.data['success']) {
-        final List<dynamic> newEntries = res.data['data'];
+        final data = res.data['data'];
+        final List<dynamic> newEntries = data['content'] ?? [];
         setState(() {
           _rankings.addAll(newEntries);
+          _nextCursor = data['nextCursor'];
+          _hasMore = data['hasNext'] ?? false;
           _isMoreLoading = false;
-          _hasMore = newEntries.length == _pageSize;
         });
       }
     } catch (e) {

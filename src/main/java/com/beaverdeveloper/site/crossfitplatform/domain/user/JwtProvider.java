@@ -21,6 +21,9 @@ public class JwtProvider {
     @Value("${jwt.expiration:86400000}")
     private long validityInMilliseconds;
 
+    @Value("${jwt.refresh-expiration:1209600000}") // 14 days by default
+    private long refreshValidityInMilliseconds;
+
     private Key key;
 
     @PostConstruct
@@ -29,13 +32,27 @@ public class JwtProvider {
         this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String createToken(String email, UserRole role) {
+    public String createAccessToken(String email, UserRole role) {
         Date now = new Date();
         Date validity = new Date(now.getTime() + validityInMilliseconds);
 
         return Jwts.builder()
                 .subject(email)
                 .claim("role", role.name())
+                .claim("type", "access")
+                .issuedAt(now)
+                .expiration(validity)
+                .signWith(key)
+                .compact();
+    }
+
+    public String createRefreshToken(String email) {
+        Date now = new Date();
+        Date validity = new Date(now.getTime() + refreshValidityInMilliseconds);
+
+        return Jwts.builder()
+                .subject(email)
+                .claim("type", "refresh")
                 .issuedAt(now)
                 .expiration(validity)
                 .signWith(key)
@@ -60,6 +77,31 @@ public class JwtProvider {
             return true;
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    public boolean isAccessToken(String token) {
+        String type = Jwts.parser()
+                .verifyWith((javax.crypto.SecretKey) key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("type", String.class);
+        return "access".equals(type);
+    }
+
+    public long getRemainingTimeMs(String token) {
+        try {
+            Date expiration = Jwts.parser()
+                    .verifyWith((javax.crypto.SecretKey) key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .getExpiration();
+            long remaining = expiration.getTime() - new Date().getTime();
+            return Math.max(0, remaining);
+        } catch (Exception e) {
+            return 0;
         }
     }
 }

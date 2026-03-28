@@ -15,6 +15,11 @@ class MyBoxTab extends StatefulWidget {
 class _MyBoxTabState extends State<MyBoxTab> {
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _currentPage = 0;
+  String _currentQuery = '';
+  final ScrollController _scrollController = ScrollController();
   List<dynamic> _searchResults = [];
   dynamic _userProfile;
   dynamic _membershipStatus;
@@ -23,7 +28,19 @@ class _MyBoxTabState extends State<MyBoxTab> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 && _hasMore && !_isLoadingMore) {
+        _loadMoreBoxes();
+      }
+    });
     _fetchInitialData();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchInitialData() async {
@@ -51,20 +68,51 @@ class _MyBoxTabState extends State<MyBoxTab> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+    _searchBoxes(''); // Default empty search to load initial 20 boxes!
   }
 
   Future<void> _searchBoxes(String query) async {
-    if (query.isEmpty) {
-      setState(() => _searchResults = []);
-      return;
-    }
+    _currentQuery = query;
+    _currentPage = 0;
+    _hasMore = true;
     try {
-      final res = await ApiClient().dio.get('/boxes/search', queryParameters: {'name': query});
+      final res = await ApiClient().dio.get('/boxes/search', queryParameters: {
+        'name': query,
+        'page': 0,
+        'size': 20
+      });
       if (res.data['success']) {
-        setState(() => _searchResults = res.data['data']);
+        setState(() {
+          _searchResults = res.data['data']['content'];
+          _hasMore = !res.data['data']['last'];
+        });
       }
     } catch (e) {
       debugPrint("Search Box Error: $e");
+    }
+  }
+
+  Future<void> _loadMoreBoxes() async {
+    if (!_hasMore || _isLoadingMore) return;
+    setState(() => _isLoadingMore = true);
+    
+    _currentPage++;
+    try {
+      final res = await ApiClient().dio.get('/boxes/search', queryParameters: {
+        'name': _currentQuery,
+        'page': _currentPage,
+        'size': 20
+      });
+      if (res.data['success']) {
+        setState(() {
+          _searchResults.addAll(res.data['data']['content']);
+          _hasMore = !res.data['data']['last'];
+        });
+      }
+    } catch (e) {
+      debugPrint("Load More Boxes Error: $e");
+    } finally {
+      if (mounted) setState(() => _isLoadingMore = false);
     }
   }
 
@@ -114,6 +162,7 @@ class _MyBoxTabState extends State<MyBoxTab> {
       body: RefreshIndicator(
         onRefresh: _fetchInitialData,
         child: ListView(
+          controller: _scrollController,
           padding: const EdgeInsets.all(16),
           children: [
             if (_userProfile['role'].toString().contains('COACH')) ..._buildCoachUI() else ..._buildUserUI(),
@@ -186,6 +235,11 @@ class _MyBoxTabState extends State<MyBoxTab> {
           child: const Text("Join"),
         ),
       )),
+      if (_isLoadingMore)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 24),
+          child: Center(child: CircularProgressIndicator()),
+        ),
     ];
   }
 }

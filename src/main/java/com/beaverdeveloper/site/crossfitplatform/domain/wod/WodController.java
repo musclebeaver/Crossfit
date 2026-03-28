@@ -7,6 +7,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,6 +18,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.beaverdeveloper.site.crossfitplatform.domain.user.User;
+import com.beaverdeveloper.site.crossfitplatform.domain.user.UserRepository;
+import com.beaverdeveloper.site.crossfitplatform.domain.box.Box;
+import com.beaverdeveloper.site.crossfitplatform.domain.box.BoxRepository;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -29,6 +37,8 @@ public class WodController {
     private final WodRepository wodRepository;
     private final WodAiService wodAiService;
     private final WodService wodService;
+    private final UserRepository userRepository;
+    private final BoxRepository boxRepository;
 
     @Operation(summary = "Get WODs by date and box")
     @GetMapping
@@ -66,21 +76,68 @@ public class WodController {
             @RequestParam String boxName,
             @RequestParam String type,
             @RequestParam(required = false) String requirements,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @AuthenticationPrincipal UserDetails userDetails) {
+            
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                
+        if (boxId != null) {
+            Box box = boxRepository.findById(boxId)
+                    .orElseThrow(() -> new IllegalArgumentException("Box not found"));
+            if (!box.getOwner().getId().equals(user.getId()) && !user.getRole().name().equals("ADMIN")) {
+                throw new AccessDeniedException("Only box owner or admin can create WODs for this box");
+            }
+        }
+        
         Wod wod = wodService.createAiWod(boxId, boxName, type, requirements, date != null ? date : LocalDate.now());
         return ApiResponse.success(WodResponse.from(wod));
     }
 
     @Operation(summary = "Create or Update Manual WOD (Coach/Admin Only)")
     @PostMapping("/manual")
-    public ApiResponse<WodResponse> upsertManualWod(@RequestBody WodManualRequest request) {
+    public ApiResponse<WodResponse> upsertManualWod(
+            @RequestBody WodManualRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+            
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                
+        if (request.getBoxId() != null) {
+            Box box = boxRepository.findById(request.getBoxId())
+                    .orElseThrow(() -> new IllegalArgumentException("Box not found"));
+            if (!box.getOwner().getId().equals(user.getId()) && !user.getRole().name().equals("ADMIN")) {
+                throw new AccessDeniedException("Only box owner or admin can create/update WODs for this box");
+            }
+        }
+        
         Wod wod = wodService.upsertManualWod(request);
         return ApiResponse.success(WodResponse.from(wod));
     }
 
     @Operation(summary = "Delete WOD (Coach/Admin Only)")
     @DeleteMapping("/{id}")
-    public ApiResponse<String> deleteWod(@PathVariable Long id) {
+    public ApiResponse<String> deleteWod(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+            
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        Wod wod = wodRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("WOD not found"));
+                
+        if (wod.getBoxId() != null) {
+            Box box = boxRepository.findById(wod.getBoxId())
+                    .orElseThrow(() -> new IllegalArgumentException("Box not found"));
+            if (!box.getOwner().getId().equals(user.getId()) && !user.getRole().name().equals("ADMIN")) {
+                throw new AccessDeniedException("Only box owner or admin can delete WODs for this box");
+            }
+        } else {
+            if (!user.getRole().name().equals("ADMIN")) {
+                throw new AccessDeniedException("Only admin can delete global WODs");
+            }
+        }
+        
         wodRepository.deleteById(id);
         return ApiResponse.success("WOD deleted successfully");
     }

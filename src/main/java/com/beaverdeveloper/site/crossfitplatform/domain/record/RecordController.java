@@ -52,23 +52,33 @@ public class RecordController {
                                 .wod(wod)
                                 .resultValue(request.getResultValue())
                                 .isRx(request.getIsRx())
+                                .isCapped(request.getIsCapped() != null ? request.getIsCapped() : false)
                                 .mediaUrl(request.getMediaUrl())
                                 .build();
 
                 return ApiResponse.success(recordService.registerRecord(record));
         }
 
-        @Operation(summary = "Get Real-time Rankings for WOD (Paginated)")
+        @Operation(summary = "Get Real-time Rankings for WOD (Cursor Paginated)")
         @GetMapping("/rankings/{wodId}")
-        public ApiResponse<List<RankingResponse>> getRankings(
+        public ApiResponse<CursorResponse<RankingResponse>> getRankings(
                         @PathVariable Long wodId,
                         @RequestParam(required = false) Long boxId,
-                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(required = false) Long cursorRank,
                         @RequestParam(defaultValue = "20") int size,
                         @RequestParam(required = false) String nickname) {
 
-                List<RankingResponse> response = recordService.getRankings(wodId, boxId, page, size, nickname);
+                CursorResponse<RankingResponse> response = recordService.getRankings(wodId, boxId, cursorRank, size,
+                                nickname);
                 return ApiResponse.success(response);
+        }
+
+        @Getter
+        @AllArgsConstructor
+        public static class CursorResponse<T> {
+                private List<T> content;
+                private Long nextCursor;
+                private boolean hasNext;
         }
 
         @Operation(summary = "Get My Ranking History")
@@ -96,6 +106,7 @@ public class RecordController {
                 private Long wodId;
                 private Double resultValue;
                 private Boolean isRx;
+                private Boolean isCapped;
                 private String mediaUrl;
         }
 
@@ -107,16 +118,18 @@ public class RecordController {
                 private Integer rank;
                 private String displayValue;
                 private boolean isRx;
+                private boolean isCapped;
                 private String tier;
 
                 public RankingResponse(Long userId, String nickname, Double score, Integer rank, String displayValue,
-                                boolean isRx, String tier) {
+                                boolean isRx, boolean isCapped, String tier) {
                         this.userId = userId;
                         this.nickname = nickname;
                         this.score = score;
                         this.rank = rank;
                         this.displayValue = displayValue;
                         this.isRx = isRx;
+                        this.isCapped = isCapped;
                         this.tier = tier;
                 }
 
@@ -146,6 +159,10 @@ public class RecordController {
 
                 public boolean isRx() {
                         return isRx;
+                }
+
+                public boolean isCapped() {
+                        return isCapped;
                 }
 
                 public String getTier() {

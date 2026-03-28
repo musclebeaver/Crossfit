@@ -23,6 +23,9 @@ public class Box extends BaseEntity {
     @Column(nullable = false)
     private String location;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     @Column(name = "business_number")
     private String businessNumber;
 

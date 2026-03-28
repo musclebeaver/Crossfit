@@ -36,7 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final currentVersion = packageInfo.version;
 
       final res = await ApiClient().dio.get('/app/version');
-      if (res.data['success'] == true) {
+      if (res.data is Map && res.data['success'] == true) {
         final data = res.data['data'];
         final latestVersion = data['latestVersion'];
         final minVersion = data['minVersion'];
@@ -102,12 +102,14 @@ class _LoginScreenState extends State<LoginScreen> {
       params = fragmentUri.queryParameters;
     }
 
-    if (params.containsKey('token')) {
+    if (params.containsKey('token') && params.containsKey('refreshToken')) {
       final token = params['token']!;
+      final refreshToken = params['refreshToken']!;
       setState(() => _isLoading = true);
       
       try {
         await const FlutterSecureStorage().write(key: 'jwt', value: token);
+        await const FlutterSecureStorage().write(key: 'refreshToken', value: refreshToken);
         // 토큰 처리 후 URL 깨끗하게 정리 (선택 사항)
         // html.window.history.replaceState(null, '', html.window.location.href.split('?')[0]);
         
@@ -131,8 +133,12 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       if (response.data['success'] == true) {
-        final token = response.data['data'];
-        await const FlutterSecureStorage().write(key: 'jwt', value: token);
+        final data = response.data['data'];
+        final accessToken = data['accessToken'];
+        final refreshToken = data['refreshToken'];
+        
+        await const FlutterSecureStorage().write(key: 'jwt', value: accessToken);
+        await const FlutterSecureStorage().write(key: 'refreshToken', value: refreshToken);
         if (mounted) {
           await _navigateByRole();
         }

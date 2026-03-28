@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -21,6 +23,7 @@ public class DailyRankingScheduler {
 
     private final WodRepository wodRepository;
     private final RecordService recordService;
+    private final RecordRepository recordRepository;
     private final RankingHistoryRepository rankingHistoryRepository;
     private final com.beaverdeveloper.site.crossfitplatform.domain.user.UserRepository userRepository;
     private final RedisTemplate<String, Object> redisTemplate;
@@ -38,14 +41,21 @@ public class DailyRankingScheduler {
 
         for (Wod wod : yesterdayWods) {
             List<RecordController.RankingResponse> rankings = recordService.getRankings(wod.getId(),
-                    null, 0, Integer.MAX_VALUE, null);
+                    wod.getBoxId(), 0L, Integer.MAX_VALUE, null).getContent();
+                    
+            List<Record> rawRecords = recordRepository.findAllByWodId(wod.getId());
+            Map<Long, Record> recordMap = rawRecords.stream()
+                    .collect(Collectors.toMap(Record::getUserId, r -> r, (r1, r2) -> r1));
+                    
+            int totalParticipants = rankings.size();
 
             for (RecordController.RankingResponse ranking : rankings) {
                 Long userId = ranking.getUserId();
                 Double score = ranking.getScore();
-
-                // Score 해석: 10,000,000 이상이면 Rx'd
-                boolean isRx = score >= 10_000_000.0;
+                
+                Record record = recordMap.get(userId);
+                boolean isRx = record != null ? record.isRx() : (score >= 10_000_000.0);
+                boolean isCapped = record != null && record.isCapped();
 
                 RankingHistory history = RankingHistory.builder()
                         .wodId(wod.getId())
@@ -60,19 +70,26 @@ public class DailyRankingScheduler {
 
                 // Award rank-based points
                 int rankValue = ranking.getRank() != null ? ranking.getRank() : 0;
-                final long pointsToAward;
-                if (rankValue >= 1 && rankValue <= 10)
-                    pointsToAward = 20;
-                else if (rankValue >= 11 && rankValue <= 100)
-                    pointsToAward = 10;
-                else if (rankValue >= 101 && rankValue <= 1000)
+                long pointsToAward = 0;
+                
+                if (isCapped) {
                     pointsToAward = 5;
-                else
-                    pointsToAward = 0;
+                } else if (isRx) {
+                    pointsToAward = 15;
+                } else {
+                    pointsToAward = 10;
+                }
+
+                if (rankValue == 1) pointsToAward = Math.max(pointsToAward, 100);
+                else if (rankValue == 2) pointsToAward = Math.max(pointsToAward, 80);
+                else if (rankValue == 3) pointsToAward = Math.max(pointsToAward, 60);
+                else if (rankValue <= totalParticipants * 0.10) pointsToAward = Math.max(pointsToAward, 40);
+                else if (rankValue <= totalParticipants * 0.30) pointsToAward = Math.max(pointsToAward, 25);
 
                 if (pointsToAward > 0) {
+                    long finalPoints = pointsToAward;
                     userRepository.findById(userId).ifPresent(user -> {
-                        user.addPoints(pointsToAward);
+                        user.addPoints(finalPoints);
                         userRepository.save(user);
                     });
                 }

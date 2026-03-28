@@ -10,9 +10,9 @@ import java.util.Arrays;
 public enum UserTier {
     NEWBIE("Level 1", 0L),
     AMATEUR("Level 2", 50L),
-    PRO("Level 3", 200L),
+    PRO("Level 3", 150L),
     ELITE("Level 4", 500L),
-    LEGEND("Level 5", 1000L);
+    LEGEND("Level 5", 1500L);
 
     private final String name;
     private final Long requiredPoints;

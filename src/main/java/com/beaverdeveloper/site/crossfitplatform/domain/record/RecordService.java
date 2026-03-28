@@ -67,7 +67,8 @@ public class RecordService {
         }
     }
 
-    public List<RecordController.RankingResponse> getRankings(Long wodId, Long boxId, int page, int size,
+    public RecordController.CursorResponse<RecordController.RankingResponse> getRankings(Long wodId, Long boxId,
+            Long cursorRank, int size,
             String nickname) {
         String key = (boxId == null) ? RANKING_KEY_PREFIX + wodId + ":global"
                 : RANKING_KEY_PREFIX + wodId + ":box:" + boxId;
@@ -77,7 +78,8 @@ public class RecordService {
         RankingStrategy strategy = getStrategy(wod.getType());
 
         if (nickname != null && !nickname.isEmpty()) {
-            // Use MySQL for nickname search, then Redis for score
+            // Use MySQL for nickname search, map cursorRank to page
+            int page = cursorRank == null ? 0 : (int) (cursorRank / size);
             org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page,
                     size);
             org.springframework.data.domain.Page<com.beaverdeveloper.site.crossfitplatform.domain.user.User> userPage;
@@ -88,7 +90,7 @@ public class RecordService {
                 userPage = userRepository.findByBoxIdAndNicknameContaining(boxId, nickname, pageable);
             }
 
-            return userPage.getContent().stream()
+            List<RecordController.RankingResponse> list = userPage.getContent().stream()
                     .map(u -> {
                         Double score = redisTemplate.opsForZSet().score(key, u.getId().toString());
                         if (score == null)
@@ -98,26 +100,39 @@ public class RecordService {
                         double resultValue = strategy.getResultValueFromScore(score);
                         String displayValue = strategy.formatRecord(resultValue);
                         boolean isRx = strategy.isRxFromScore(score);
+                        boolean isCapped = strategy.isCappedFromScore(score);
 
                         return new RecordController.RankingResponse(u.getId(), u.getNickname(), score,
-                                rank != null ? rank.intValue() + 1 : null, displayValue, isRx, u.getTier().name());
+                                rank != null ? rank.intValue() + 1 : null, displayValue, isRx, isCapped,
+                                u.getTier().name());
                     })
                     .filter(Objects::nonNull)
                     .sorted((a, b) -> b.getScore().compareTo(a.getScore()))
                     .collect(Collectors.toList());
+
+            boolean hasNext = userPage.hasNext();
+            Long nextCursor = hasNext ? (long) ((page + 1) * size) : null;
+            return new RecordController.CursorResponse<>(list, nextCursor, hasNext);
+
         } else {
-            // Use Redis for standard paginated rankings
-            int start = page * size;
-            int stop = (page + 1) * size - 1;
+            // Use Redis cursor-based pagination (by rank)
+            int start = cursorRank == null ? 0 : cursorRank.intValue();
+            int fetchStop = start + size; // Fetch size + 1 to check for hasNext
 
-            Set<ZSetOperations.TypedTuple<Object>> results = redisTemplate.opsForZSet().reverseRangeWithScores(key,
-                    start, stop);
+            Set<ZSetOperations.TypedTuple<Object>> fetchResults = redisTemplate.opsForZSet().reverseRangeWithScores(key,
+                    start, fetchStop);
 
-            if (results == null)
-                return List.of();
+            if (fetchResults == null || fetchResults.isEmpty()) {
+                return new RecordController.CursorResponse<>(List.of(), null, false);
+            }
+
+            boolean hasNext = fetchResults.size() > size;
+            List<ZSetOperations.TypedTuple<Object>> activeResults = fetchResults.stream()
+                    .limit(size)
+                    .collect(Collectors.toList());
 
             int[] currentRank = { start + 1 }; // 1-based rank
-            return results.stream()
+            List<RecordController.RankingResponse> list = activeResults.stream()
                     .map(tuple -> {
                         Long userId = Long.valueOf((String) tuple.getValue());
                         Double score = tuple.getScore();
@@ -130,11 +145,15 @@ public class RecordService {
                         double resultValue = strategy.getResultValueFromScore(score);
                         String displayValue = strategy.formatRecord(resultValue);
                         boolean isRx = strategy.isRxFromScore(score);
+                        boolean isCapped = strategy.isCappedFromScore(score);
 
                         return new RecordController.RankingResponse(userId, userNickname, score,
-                                currentRank[0]++, displayValue, isRx, userTier);
+                                currentRank[0]++, displayValue, isRx, isCapped, userTier);
                     })
                     .collect(Collectors.toList());
+
+            Long nextCursor = hasNext ? (long) (start + size) : null;
+            return new RecordController.CursorResponse<>(list, nextCursor, hasNext);
         }
     }
 

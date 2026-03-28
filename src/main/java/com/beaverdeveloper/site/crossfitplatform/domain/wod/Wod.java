@@ -36,4 +36,8 @@ public class Wod extends BaseEntity {
 
     @Column(nullable = false)
     private LocalDate date;
+
+    @Column(name = "is_ai_generated", nullable = false)
+    @Builder.Default
+    private boolean isAiGenerated = false;
 }

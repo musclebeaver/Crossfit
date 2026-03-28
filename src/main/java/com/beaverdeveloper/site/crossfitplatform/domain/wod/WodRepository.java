@@ -13,4 +13,6 @@ public interface WodRepository extends JpaRepository<Wod, Long> {
     List<Wod> findAllByBoxIdAndDate(Long boxId, LocalDate date);
 
     List<Wod> findByBoxIdIsNull();
+
+    Long countByBoxId(Long boxId);
 }

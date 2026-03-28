@@ -58,6 +58,10 @@ public class User extends BaseEntity {
         return this;
     }
 
+    public void updateBox(Long boxId) {
+        this.boxId = boxId;
+    }
+
     public void updateNickname(String nickname) {
         this.nickname = nickname;
     }

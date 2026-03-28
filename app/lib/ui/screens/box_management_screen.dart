@@ -184,6 +184,8 @@ class _BoxManagementScreenState extends State<BoxManagementScreen> with SingleTi
   Future<void> _showAiWodDialog() async {
     final reqController = TextEditingController();
     String type = 'RANDOM';
+    String teamSize = 'Individual';
+    String teamFormat = 'I Go You Go';
 
     await showDialog(
       context: context,
@@ -207,6 +209,22 @@ class _BoxManagementScreenState extends State<BoxManagementScreen> with SingleTi
                   decoration: const InputDecoration(labelText: 'WOD Type'),
                 ),
                 const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: teamSize,
+                  items: ['Individual', 'Team of 2', 'Team of 3'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                  onChanged: (val) => setDialogState(() => teamSize = val!),
+                  decoration: const InputDecoration(labelText: 'Team Size'),
+                ),
+                if (teamSize != 'Individual') ...[
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: teamFormat,
+                    items: ['I Go You Go', 'Synchro', 'Relay'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                    onChanged: (val) => setDialogState(() => teamFormat = val!),
+                    decoration: const InputDecoration(labelText: 'Team Format'),
+                  ),
+                ],
+                const SizedBox(height: 16),
                 TextField(
                   controller: reqController,
                   decoration: const InputDecoration(
@@ -225,7 +243,11 @@ class _BoxManagementScreenState extends State<BoxManagementScreen> with SingleTi
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                _generateAiWod(type, reqController.text);
+                String finalReq = reqController.text;
+                if (teamSize != 'Individual') {
+                  finalReq = 'Team Size: $teamSize, Format: $teamFormat. ' + finalReq;
+                }
+                _generateAiWod(type, finalReq);
               },
               child: const Text('Generate'),
             ),

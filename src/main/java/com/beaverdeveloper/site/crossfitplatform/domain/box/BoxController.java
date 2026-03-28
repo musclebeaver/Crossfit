@@ -9,6 +9,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -44,13 +47,14 @@ public class BoxController {
         return ApiResponse.success(boxService.getMembershipStatus(user.getId()));
     }
 
-    @Operation(summary = "Search Boxes by Name")
+    @Operation(summary = "Search Boxes by Name (Paginated)")
     @GetMapping("/search")
-    public ApiResponse<List<BoxResponse>> searchBoxes(@RequestParam String name) {
-        List<Box> boxes = boxService.searchBoxes(name);
-        List<BoxResponse> response = boxes.stream()
-                .map(BoxResponse::from)
-                .collect(Collectors.toList());
+    public ApiResponse<Page<BoxResponse>> searchBoxes(
+            @RequestParam(required = false, defaultValue = "") String name,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<Box> boxes = boxService.searchBoxes(name, PageRequest.of(page, size));
+        Page<BoxResponse> response = boxes.map(BoxResponse::from);
         return ApiResponse.success(response);
     }
 
@@ -100,7 +104,17 @@ public class BoxController {
     @GetMapping("/{boxId}/members")
     public ApiResponse<List<MemberResponse>> getBoxMembers(
             @PathVariable Long boxId,
-            @RequestParam(required = false) String nickname) {
+            @RequestParam(required = false) String nickname,
+            @AuthenticationPrincipal UserDetails userDetails) {
+            
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        Box box = boxRepository.findById(boxId)
+                .orElseThrow(() -> new IllegalArgumentException("Box not found"));
+                
+        if (!box.getOwner().getId().equals(user.getId()) && !user.getRole().name().equals("ADMIN")) {
+            throw new AccessDeniedException("Only box owner or admin can view members");
+        }
         List<BoxMember> members = boxService.getAllMembers(boxId, nickname);
         List<MemberResponse> response = members.stream()
                 .map(m -> new MemberResponse(m.getId(), m.getUser().getNickname(), m.getStatus()))
@@ -112,7 +126,17 @@ public class BoxController {
     @PostMapping("/members/{memberId}/approve")
     public ApiResponse<String> approveMember(
             @PathVariable Long memberId,
-            @RequestParam boolean approve) {
+            @RequestParam boolean approve,
+            @AuthenticationPrincipal UserDetails userDetails) {
+            
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        BoxMember member = boxMemberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("Member not found"));
+        
+        if (!member.getBox().getOwner().getId().equals(user.getId()) && !user.getRole().name().equals("ADMIN")) {
+            throw new AccessDeniedException("Only box owner or admin can approve members");
+        }
 
         if (approve) {
             boxService.approveMember(memberId);
@@ -126,12 +150,32 @@ public class BoxController {
     @PatchMapping("/{boxId}/auto-wod")
     public ApiResponse<Boolean> toggleAutoWod(
             @PathVariable Long boxId,
-            @RequestParam boolean enabled) {
+            @RequestParam boolean enabled,
+            @AuthenticationPrincipal UserDetails userDetails) {
+            
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
         Box box = boxRepository.findById(boxId)
                 .orElseThrow(() -> new IllegalArgumentException("Box not found"));
+                
+        if (!box.getOwner().getId().equals(user.getId()) && !user.getRole().name().equals("ADMIN")) {
+            throw new AccessDeniedException("Only box owner or admin can modify auto-wod setting");
+        }
+        
         box.updateAutoWod(enabled);
         boxRepository.save(box);
         return ApiResponse.success(enabled);
+    }
+
+    @Operation(summary = "Get Box Statistics (Box Owner Only)")
+    @GetMapping("/{boxId}/statistics")
+    public ApiResponse<BoxStatisticsResponse> getBoxStatistics(
+            @PathVariable Long boxId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        return ApiResponse.success(boxService.getBoxStatistics(boxId, user.getId()));
     }
 
     @Getter
@@ -177,5 +221,14 @@ public class BoxController {
         private Long memberId;
         private String nickname;
         private BoxMemberStatus status;
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class BoxStatisticsResponse {
+        private Long boxId;
+        private Long totalMembers;
+        private Long activeMembersLast7Days;
+        private Long totalWods;
     }
 }

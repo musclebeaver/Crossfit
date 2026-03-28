@@ -1,4 +1,4 @@
-package com.beaverdeveloper.site.crossfitplatform.global.config;
+package com.beaverdeveloper.site.crossfitplatform.global.exception;
 
 import com.beaverdeveloper.site.crossfitplatform.global.common.ApiResponse;
 import org.springframework.http.HttpStatus;
@@ -40,5 +40,15 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleGenericException(Exception e) {
         return ApiResponse.error("An unexpected error occurred: " + e.getMessage());
+    }
+
+    @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleValidationException(org.springframework.web.bind.MethodArgumentNotValidException e) {
+        String errorMessage = e.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .findFirst()
+                .orElse("Validation failed");
+        return ApiResponse.error(errorMessage);
     }
 }

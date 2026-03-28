@@ -6,7 +6,10 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "records")
+@Table(name = "records", indexes = {
+        @Index(name = "idx_record_wod", columnList = "wod_id, is_rx DESC, is_capped ASC, result_value DESC"),
+        @Index(name = "idx_record_user", columnList = "user_id")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -29,6 +32,9 @@ public class Record extends BaseEntity {
 
     @Column(name = "is_rx", nullable = false)
     private boolean isRx;
+
+    @Column(name = "is_capped", nullable = false)
+    private boolean isCapped;
 
     @Column(name = "media_url")
     private String mediaUrl;

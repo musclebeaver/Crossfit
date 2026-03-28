@@ -65,24 +65,36 @@ public class OAuth2Attributes {
     private static OAuth2Attributes ofNaver(String userNameAttributeName, Map<String, Object> attributes) {
         Map<String, Object> response = (Map<String, Object>) attributes.get("response");
 
+        String name = (String) response.get("nickname");
+        if (name == null || name.isEmpty()) {
+            name = (String) response.get("name");
+        }
+
         return OAuth2Attributes.builder()
-                .name((String) response.get("name"))
+                .name(name)
                 .email((String) response.get("email"))
                 .picture((String) response.get("profile_image"))
-                .attributes(response)
+                .attributes(attributes)
                 .nameAttributeKey(userNameAttributeName)
                 .provider(AuthProvider.NAVER)
                 .build();
     }
 
     public com.beaverdeveloper.site.crossfitplatform.domain.user.User toEntity() {
+        String finalNickname = name;
+        if (finalNickname == null || finalNickname.isEmpty()) {
+            finalNickname = email.split("@")[0];
+        }
+
         return com.beaverdeveloper.site.crossfitplatform.domain.user.User.builder()
-                .nickname(name)
+                .nickname(finalNickname)
                 .email(email)
                 .password(java.util.UUID.randomUUID().toString()) // 소셜 사용자는 랜덤 패스워드 설정
                 .role(UserRole.USER)
                 .provider(provider)
                 .isVerified(true)
+                .points(0L)
+                .tier(com.beaverdeveloper.site.crossfitplatform.domain.user.UserTier.NEWBIE)
                 .build();
     }
 }

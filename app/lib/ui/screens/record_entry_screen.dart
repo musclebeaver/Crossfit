@@ -30,6 +30,7 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
   final _weightController = TextEditingController();
 
   bool _isRx = true;
+  bool _isCapped = false;
   bool _isSaving = false;
 
   @override
@@ -109,6 +110,7 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
         'wodId': widget.wod['id'],
         'resultValue': resultValue,
         'isRx': _isRx,
+        'isCapped': _isCapped,
       });
 
       if (res.data['success']) {
@@ -255,6 +257,20 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
                 decoration: InputDecoration(hintText: 'Sec', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
               ),
             ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Checkbox(
+              value: _isCapped,
+              onChanged: (val) {
+                setState(() => _isCapped = val ?? false);
+              },
+              activeColor: AppColors.primary,
+            ),
+            const Text('Time Capped (Did not finish)', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
           ],
         ),
       ],
