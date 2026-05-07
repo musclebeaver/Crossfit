@@ -51,6 +51,9 @@ public class User extends BaseEntity {
 
     @Column(nullable = false)
     private boolean isVerified;
+    
+    @Column(name = "fcm_token")
+    private String fcmToken;
 
     public User update(String name, String picture) {
         this.nickname = name;
@@ -60,6 +63,10 @@ public class User extends BaseEntity {
 
     public void updateBox(Long boxId) {
         this.boxId = boxId;
+    }
+    
+    public void updateFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
     }
 
     public void updateNickname(String nickname) {

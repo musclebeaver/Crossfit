@@ -8,4 +8,5 @@ import java.util.List;
 @Repository
 public interface RankingHistoryRepository extends JpaRepository<RankingHistory, Long> {
     List<RankingHistory> findAllByUserId(Long userId);
+    void deleteByUserId(Long userId);
 }

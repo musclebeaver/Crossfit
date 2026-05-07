@@ -16,6 +16,8 @@ public class UserService {
     private final EmailVerificationRepository emailVerificationRepository;
     private final LoginAttemptService loginAttemptService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final com.beaverdeveloper.site.crossfitplatform.domain.record.RecordRepository recordRepository;
+    private final com.beaverdeveloper.site.crossfitplatform.domain.record.RankingHistoryRepository rankingHistoryRepository;
 
     @org.springframework.beans.factory.annotation.Value("${app.auth.verify-email}")
     private boolean verifyEmailEnabled;
@@ -142,5 +144,67 @@ public class UserService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         user.upgradeToPremium();
+    }
+    
+    @Transactional
+    public void updateFcmToken(String email, String fcmToken) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        user.updateFcmToken(fcmToken);
+    }
+
+    @Transactional
+    public AuthController.TokenResponse socialLogin(SocialAuthService.OAuth2UserInfo userInfo) {
+        String email = userInfo.email();
+        if (email == null) {
+            throw new IllegalArgumentException("Email not found from OAuth2 provider");
+        }
+
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            // 회원가입
+            String nickname = userInfo.name();
+            if (nickname == null || nickname.isEmpty()) {
+                nickname = email.split("@")[0];
+            }
+            user = User.builder()
+                    .email(email)
+                    .password(java.util.UUID.randomUUID().toString())
+                    .nickname(nickname)
+                    .role(UserRole.USER)
+                    .provider(userInfo.provider())
+                    .isVerified(true)
+                    .points(0L)
+                    .tier(UserTier.NEWBIE)
+                    .build();
+            userRepository.save(user);
+        } else {
+            // 업데이트 (이름이나 사진이 바뀌었을수도 있으나 일단은 유지)
+            // user.update(userInfo.name(), userInfo.picture());
+        }
+
+        String accessToken = jwtProvider.createAccessToken(user.getEmail(), user.getRole());
+        String refreshToken = jwtProvider.createRefreshToken(user.getEmail());
+        saveRefreshToken(user.getEmail(), refreshToken);
+
+        return new AuthController.TokenResponse(accessToken, refreshToken);
+    }
+
+    @Transactional
+    public void withdraw(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        // 1. Delete records
+        recordRepository.deleteByUserId(user.getId());
+
+        // 2. Delete ranking history
+        rankingHistoryRepository.deleteByUserId(user.getId());
+
+        // 3. Clear Redis records/rankings (Optionally, but mainly RT)
+        redisTemplate.delete("RT:" + email);
+
+        // 4. Delete user
+        userRepository.delete(user);
     }
 }

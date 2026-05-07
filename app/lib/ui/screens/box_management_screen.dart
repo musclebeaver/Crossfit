@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:intl/intl.dart';
 import '../styles/app_colors.dart';
 import '../../core/api/api_client.dart';
+import '../../core/services/ad_service.dart';
+import '../../core/services/user_role_service.dart';
 
 class BoxManagementScreen extends StatefulWidget {
   final num boxId;
@@ -181,6 +183,44 @@ class _BoxManagementScreenState extends State<BoxManagementScreen> with SingleTi
     }
   }
 
+  Future<void> _verifyAndGenerateAiWod(String type, String finalReq) async {
+    if (UserRoleService.isPremium) {
+      // 프리미엄 유저는 바로 생성
+      _generateAiWod(type, finalReq);
+      return;
+    }
+
+    // 일반 유저는 광고 시청 확인 팝업
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("AI WOD Generation"),
+        content: const Text("Would you like to watch a short ad to generate an AI WOD?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF115D33), foregroundColor: Colors.white),
+            child: const Text("Watch Ad"),
+          ),
+        ],
+      ),
+    );
+
+    if (proceed == true) {
+      AdService.showRewardedAd(
+        onRewardEarned: () {
+          _generateAiWod(type, finalReq);
+        },
+        onAdFailedToLoad: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to load ad. Please try again.")),
+          );
+        },
+      );
+    }
+  }
+
   Future<void> _showAiWodDialog() async {
     final reqController = TextEditingController();
     String type = 'RANDOM';
@@ -193,7 +233,7 @@ class _BoxManagementScreenState extends State<BoxManagementScreen> with SingleTi
         builder: (context, setDialogState) => AlertDialog(
           title: Row(
             children: const [
-              Icon(Icons.auto_awesome, color: AppColors.primary),
+              Icon(Icons.auto_awesome, color: Color(0xFF115D33)),
               SizedBox(width: 8),
               Text('AI Auto Generate'),
             ],
@@ -247,7 +287,7 @@ class _BoxManagementScreenState extends State<BoxManagementScreen> with SingleTi
                 if (teamSize != 'Individual') {
                   finalReq = 'Team Size: $teamSize, Format: $teamFormat. ' + finalReq;
                 }
-                _generateAiWod(type, finalReq);
+                _verifyAndGenerateAiWod(type, finalReq);
               },
               child: const Text('Generate'),
             ),
@@ -377,27 +417,27 @@ class _BoxManagementScreenState extends State<BoxManagementScreen> with SingleTi
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text('${widget.boxName} Management', style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+        title: Text('${widget.boxName} Management', style: const TextStyle(color: Color(0xFF115D33), fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF115D33)),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           if (_tabController.index == 0)
             IconButton(
-              icon: const Icon(Icons.add, color: AppColors.primary),
+              icon: const Icon(Icons.add, color: Color(0xFF115D33)),
               onPressed: () => _showWodDialog(),
             ),
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
-          indicatorColor: AppColors.primary,
+          labelColor: const Color(0xFF115D33),
+          unselectedLabelColor: const Color(0xFF757575),
+          indicatorColor: const Color(0xFF115D33),
           tabs: const [
             Tab(text: 'WOD'),
             Tab(text: 'Members'),
@@ -435,7 +475,7 @@ class _BoxManagementScreenState extends State<BoxManagementScreen> with SingleTi
               Row(
                 children: [
                    IconButton(
-                    icon: const Icon(Icons.settings, color: AppColors.textSecondary),
+                    icon: const Icon(Icons.settings, color: Color(0xFF757575)),
                     onPressed: () {
                       _showSettingsDialog();
                     },
@@ -474,12 +514,23 @@ class _BoxManagementScreenState extends State<BoxManagementScreen> with SingleTi
                       ElevatedButton.icon(
                         onPressed: _showAiWodDialog,
                         icon: const Icon(Icons.auto_awesome),
-                        label: const Text("AI Auto Generate"),
+                        label: const Text("AI Auto Generate", style: TextStyle(fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF115D33),
+                          foregroundColor: Colors.white,
+                          shape: const StadiumBorder(),
+                          elevation: 0,
+                        ),
                       ),
                       OutlinedButton.icon(
                         onPressed: () => _showWodDialog(),
                         icon: const Icon(Icons.add),
-                        label: const Text("Manual Add"),
+                        label: const Text("Manual Add", style: TextStyle(fontWeight: FontWeight.bold)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF115D33),
+                          side: const BorderSide(color: Color(0xFFE0E0E0)),
+                          shape: const StadiumBorder(),
+                        ),
                       ),
                     ],
                   ),
@@ -488,8 +539,9 @@ class _BoxManagementScreenState extends State<BoxManagementScreen> with SingleTi
             )
           else
             ..._wods.map((wod) => Card(
+              color: Colors.white,
               margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: AppColors.border)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE0E0E0))),
               elevation: 0,
               child: ListTile(
                 title: Text(wod['title'], style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -498,7 +550,7 @@ class _BoxManagementScreenState extends State<BoxManagementScreen> with SingleTi
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.edit, color: AppColors.primary),
+                      icon: const Icon(Icons.edit, color: Color(0xFF115D33)),
                       onPressed: () => _showWodDialog(wod: wod),
                     ),
                     IconButton(
@@ -527,11 +579,12 @@ class _BoxManagementScreenState extends State<BoxManagementScreen> with SingleTi
             onChanged: _onMemberSearchChanged,
             decoration: InputDecoration(
               hintText: 'Search by nickname...',
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const Icon(Icons.search, color: Color(0xFF115D33)),
               isDense: true,
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              filled: false,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF115D33))),
               suffixIcon: _memberSearchController.text.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear),
@@ -544,14 +597,45 @@ class _BoxManagementScreenState extends State<BoxManagementScreen> with SingleTi
             ),
           ),
           const SizedBox(height: 24),
-          const Text("Membership Status", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          if (_members.isEmpty)
-            const Center(child: Padding(padding: EdgeInsets.all(32), child: Text("No members found.")))
-          else
-            ..._members.map((m) => _buildMemberItem(m)),
+          _buildMemberStatusSection(),
         ],
       ),
+    );
+  }
+
+  Widget _buildMemberStatusSection() {
+    final pending = _members.where((m) => m['status'] == 'PENDING').toList();
+    final approved = _members.where((m) => m['status'] == 'APPROVED').toList();
+    final rejected = _members.where((m) => m['status'] == 'REJECTED').toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (pending.isNotEmpty) ...[
+          const Row(
+            children: [
+              Icon(Icons.hourglass_empty, color: Colors.orange, size: 20),
+              SizedBox(width: 8),
+              Text("Pending Approval", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...pending.map((m) => _buildMemberItem(m)),
+          const SizedBox(height: 24),
+        ],
+        const Text("Approved Members", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        if (approved.isEmpty)
+          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text("No approved members yet.", style: TextStyle(color: Colors.grey)))
+        else
+          ...approved.map((m) => _buildMemberItem(m)),
+        if (rejected.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          const Text("Rejected", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 12),
+          ...rejected.map((m) => _buildMemberItem(m)),
+        ],
+      ],
     );
   }
 
@@ -563,8 +647,9 @@ class _BoxManagementScreenState extends State<BoxManagementScreen> with SingleTi
     if (status == 'REJECTED') statusColor = Colors.red;
 
     return Card(
+      color: Colors.white,
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: AppColors.border)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE0E0E0))),
       elevation: 0,
       child: ListTile(
         title: Text(member['nickname'], style: const TextStyle(fontWeight: FontWeight.bold)),

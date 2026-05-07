@@ -39,9 +39,9 @@ class _RecordsTabState extends State<RecordsTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('My Records', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+        title: const Text('My Records', style: TextStyle(color: Color(0xFF115D33), fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -70,12 +70,12 @@ class _RecordsTabState extends State<RecordsTab> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+        border: Border.all(color: const Color(0xFFE0E0E0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Ranking Trends", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const Text("Ranking Trends", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
           const SizedBox(height: 20),
           Expanded(
             child: LineChart(
@@ -89,13 +89,13 @@ class _RecordsTabState extends State<RecordsTab> {
                       return FlSpot(e.key.toDouble(), e.value['rank'].toDouble());
                     }).toList(),
                     isCurved: true,
-                    color: AppColors.primary,
+                    color: const Color(0xFF115D33),
                     barWidth: 3,
                     isStrokeCapRound: true,
                     dotData: const FlDotData(show: true),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: const Color(0xFF115D33).withOpacity(0.1),
                     ),
                   ),
                 ],
@@ -112,24 +112,25 @@ class _RecordsTabState extends State<RecordsTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Activity History", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textPrimary)),
+        const Text("Activity History", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87)),
         const SizedBox(height: 12),
         if (_history.isEmpty)
-          const Center(child: Padding(padding: EdgeInsets.all(32), child: Text("No data yet"))),
+          const Center(child: Padding(padding: EdgeInsets.all(32), child: Text("No data yet", style: TextStyle(color: Color(0xFF757575))))),
         ..._history.map((h) => Card(
           margin: const EdgeInsets.only(bottom: 12),
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: AppColors.border)),
+          color: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE0E0E0))),
           child: ListTile(
-            leading: const CircleAvatar(backgroundColor: AppColors.surface, child: Icon(Icons.fitness_center, color: AppColors.primary)),
-            title: Text("WOD #${h['wodId']}", style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text("${h['date']}"),
+            leading: const CircleAvatar(backgroundColor: Color(0xFFF5F5F5), child: Icon(Icons.fitness_center, color: Color(0xFF115D33))),
+            title: Text("WOD #${h['wodId']}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+            subtitle: Text("${h['date']}", style: const TextStyle(color: Color(0xFF757575))),
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text("${h['rank']}th", style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 16)),
-                Text(h['isRx'] ? "Rx'd" : "Scaled", style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                Text("${h['rank']}th", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF115D33), fontSize: 16)),
+                Text(h['isRx'] ? "Rx'd" : "Scaled", style: const TextStyle(fontSize: 10, color: Color(0xFF757575))),
               ],
             ),
           ),

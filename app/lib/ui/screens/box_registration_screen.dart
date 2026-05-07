@@ -53,13 +53,13 @@ class _BoxRegistrationScreenState extends State<BoxRegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Register Your Box', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+        title: const Text('Register Your Box', style: TextStyle(color: Color(0xFF115D33), fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF115D33)),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -68,18 +68,18 @@ class _BoxRegistrationScreenState extends State<BoxRegistrationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.business, size: 80, color: AppColors.primary),
+            const Icon(Icons.business, size: 80, color: Color(0xFF115D33)),
             const SizedBox(height: 24),
             const Text(
               'Apply for Official Box Registration',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
             const SizedBox(height: 8),
             const Text(
               'Once approved, you can manage members and WODs.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: Color(0xFF757575)),
             ),
             const SizedBox(height: 48),
             _buildTextField(_nameController, 'Box Name', Icons.drive_file_rename_outline),
@@ -91,12 +91,13 @@ class _BoxRegistrationScreenState extends State<BoxRegistrationScreen> {
             ElevatedButton(
               onPressed: _isLoading ? null : _handleRegister,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: const Color(0xFF115D33),
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: const StadiumBorder(),
+                elevation: 0,
               ),
               child: _isLoading 
-                ? const CircularProgressIndicator(color: Colors.white)
+                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                 : const Text('Submit Application', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
@@ -110,11 +111,12 @@ class _BoxRegistrationScreenState extends State<BoxRegistrationScreen> {
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: AppColors.primary),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
+        labelStyle: const TextStyle(color: Color(0xFF757575)),
+        prefixIcon: Icon(icon, color: const Color(0xFF115D33)),
+        filled: false,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF115D33), width: 1.5)),
       ),
     );
   }

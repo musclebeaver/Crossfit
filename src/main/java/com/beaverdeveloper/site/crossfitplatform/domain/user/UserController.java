@@ -60,6 +60,22 @@ public class UserController {
         userService.upgradeToPremium(userDetails.getUsername());
         return ApiResponse.success(null);
     }
+    
+    @Operation(summary = "Update FCM Token")
+    @PatchMapping("/fcm-token")
+    public ApiResponse<Void> updateFcmToken(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody UpdateFcmTokenRequest request) {
+        userService.updateFcmToken(userDetails.getUsername(), request.getFcmToken());
+        return ApiResponse.success(null);
+    }
+
+    @Operation(summary = "Withdraw Account (Delete everything)")
+    @DeleteMapping("/me")
+    public ApiResponse<Void> withdraw(@AuthenticationPrincipal UserDetails userDetails) {
+        userService.withdraw(userDetails.getUsername());
+        return ApiResponse.success(null);
+    }
 
     @Getter
     public static class UpdateNicknameRequest {
@@ -70,6 +86,11 @@ public class UserController {
     public static class UpdatePasswordRequest {
         private String oldPassword;
         private String newPassword;
+    }
+    
+    @Getter
+    public static class UpdateFcmTokenRequest {
+        private String fcmToken;
     }
 
     @Getter

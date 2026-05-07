@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final UserService userService;
+    private final SocialAuthService socialAuthService;
 
     @Operation(summary = "User Signup")
     @PostMapping("/signup")
@@ -44,6 +45,14 @@ public class AuthController {
     @PostMapping("/refresh")
     public ApiResponse<TokenResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
         TokenResponse response = userService.refresh(request.getRefreshToken());
+        return ApiResponse.success(response);
+    }
+
+    @Operation(summary = "Social Login with Native SDK Token")
+    @PostMapping("/social-login")
+    public ApiResponse<TokenResponse> socialLogin(@Valid @RequestBody SocialAuthRequest request) {
+        SocialAuthService.OAuth2UserInfo userInfo = socialAuthService.getUserInfo(request.getProvider(), request.getAccessToken());
+        TokenResponse response = userService.socialLogin(userInfo);
         return ApiResponse.success(response);
     }
 
@@ -85,5 +94,16 @@ public class AuthController {
     public static class TokenResponse {
         private String accessToken;
         private String refreshToken;
+    }
+
+    @Getter
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class SocialAuthRequest {
+        @jakarta.validation.constraints.NotNull(message = "Provider is required")
+        private AuthProvider provider;
+
+        @NotBlank(message = "Access token is required")
+        private String accessToken;
     }
 }

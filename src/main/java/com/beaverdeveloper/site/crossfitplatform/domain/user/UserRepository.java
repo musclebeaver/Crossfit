@@ -18,4 +18,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Page<User> findByBoxIdAndNicknameContaining(Long boxId, String nickname, Pageable pageable);
 
     Long countByBoxId(Long boxId);
+    
+    java.util.List<User> findAllByBoxId(Long boxId);
 }

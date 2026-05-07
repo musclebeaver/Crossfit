@@ -5,11 +5,17 @@ import 'package:dio/dio.dart';
 import '../styles/app_colors.dart';
 import '../../core/api/api_client.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart' as kakao;
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_naver_login/flutter_naver_login.dart';
 import 'signup_screen.dart';
 import 'main_screen.dart';
 import 'admin_main_screen.dart'; // 관리자 화면 추가
-import 'dart:html' as html; // Flutter Web 환경 대응
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import '../../core/services/push_notification_service.dart';
+import '../../core/services/user_role_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -82,7 +88,12 @@ class _LoginScreenState extends State<LoginScreen> {
               child: const Text('Later'),
             ),
           ElevatedButton(
-            onPressed: () => html.window.open(updateUrl, '_blank'),
+            onPressed: () async {
+              final uri = Uri.parse(updateUrl);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
             child: const Text('Update Now'),
           ),
         ],
@@ -124,6 +135,81 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _handleNavigateByRole() async {
+    if (mounted) {
+      await _navigateByRole();
+    }
+  }
+
+  Future<void> _handleNativeSocialLogin(String provider) async {
+    setState(() => _isLoading = true);
+    try {
+      String? accessToken;
+
+      if (provider == 'kakao') {
+        if (await kakao.isKakaoTalkInstalled()) {
+          try {
+            await kakao.UserApi.instance.loginWithKakaoTalk();
+          } catch (error) {
+            await kakao.UserApi.instance.loginWithKakaoAccount();
+          }
+        } else {
+          await kakao.UserApi.instance.loginWithKakaoAccount();
+        }
+        final token = await kakao.TokenManagerProvider.instance.manager.getToken();
+        accessToken = token?.accessToken;
+      } else if (provider == 'google') {
+        final GoogleSignIn googleSignIn = GoogleSignIn();
+        final GoogleSignInAccount? account = await googleSignIn.signIn();
+        final GoogleSignInAuthentication? auth = await account?.authentication;
+        accessToken = auth?.accessToken;
+      } else if (provider == 'naver') {
+        final NaverLoginResult result = await FlutterNaverLogin.logIn();
+        final NaverAccessToken resToken = await FlutterNaverLogin.currentAccessToken;
+        accessToken = resToken.accessToken;
+      } else if (provider == 'apple') {
+        final credential = await SignInWithApple.getAppleIDCredential(
+          scopes: [
+            AppleIDAuthorizationScope.email,
+            AppleIDAuthorizationScope.fullName,
+          ],
+        );
+        accessToken = credential.identityToken; // ID Token을 전송
+      }
+
+      if (accessToken != null) {
+        // 백엔드 API로 네이티브 액세스 토큰 전송
+        final response = await ApiClient().dio.post('/auth/social-login', data: {
+          'provider': provider.toUpperCase(),
+          'accessToken': accessToken,
+        });
+
+        if (response.data['success'] == true) {
+          final data = response.data['data'];
+          final jwt = data['accessToken'];
+          final refreshToken = data['refreshToken'];
+          
+          await const FlutterSecureStorage().write(key: 'jwt', value: jwt);
+          await const FlutterSecureStorage().write(key: 'refreshToken', value: refreshToken);
+          
+          // FCM 토큰 등록
+          await PushNotificationService.registerToken();
+          
+          await _handleNavigateByRole();
+        }
+      }
+    } catch (e) {
+      debugPrint("Native Social Login Error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Login failed: $provider')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _handleLogin() async {
     setState(() => _isLoading = true);
     try {
@@ -139,9 +225,11 @@ class _LoginScreenState extends State<LoginScreen> {
         
         await const FlutterSecureStorage().write(key: 'jwt', value: accessToken);
         await const FlutterSecureStorage().write(key: 'refreshToken', value: refreshToken);
-        if (mounted) {
-          await _navigateByRole();
-        }
+        
+        // FCM 토큰 등록
+        await PushNotificationService.registerToken();
+        
+        await _handleNavigateByRole();
       }
     } catch (e) {
       if (mounted) {
@@ -163,6 +251,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final res = await ApiClient().dio.get('/users/me');
       if (res.data['success'] == true) {
         final role = res.data['data']['role'];
+        UserRoleService.setRole(role); // 전역 상태 업데이트
         if (mounted) {
           if (role == 'ADMIN') {
             Navigator.pushReplacement(
@@ -192,74 +281,80 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white, // 순백색 배경
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 36.0, vertical: 24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.fitness_center, size: 80, color: AppColors.primary),
-              const SizedBox(height: 24),
+              const Icon(Icons.fitness_center, size: 72, color: Color(0xFF115D33)),
+              const SizedBox(height: 16),
               const Text(
-                'CROSSFIT PLATFORM',
+                'CROSSFIT',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: AppColors.textPrimary,
+                  color: Color(0xFF115D33),
                   fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 3,
                 ),
               ),
               const SizedBox(height: 48),
               TextField(
                 controller: _emailController,
-                style: const TextStyle(color: AppColors.textPrimary),
+                style: const TextStyle(color: Colors.black87),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9@._-]')),
                 ],
-                decoration: _buildInputDecoration('Email', Icons.email),
+                decoration: _buildInputDecoration('Email', Icons.email_outlined),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _passwordController,
                 obscureText: true,
-                style: const TextStyle(color: AppColors.textPrimary),
+                style: const TextStyle(color: Colors.black87),
                 inputFormatters: [
                   FilteringTextInputFormatter.deny(RegExp(r'[ㄱ-ㅎ|ㅏ-ㅣ|가-힣\u4e00-\u9fa5\u3040-\u30ff]')),
                 ],
-                decoration: _buildInputDecoration('Password', Icons.lock),
+                decoration: _buildInputDecoration('Password', Icons.lock_outline),
               ),
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _isLoading ? null : _handleLogin,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: const Color(0xFF115D33),
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: const StadiumBorder(),
+                  elevation: 0,
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Login', style: TextStyle(fontSize: 18, color: Colors.white)),
+                    ? const SizedBox(
+                        height: 20, width: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text('Login', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 48),
               const Row(
                 children: [
-                  Expanded(child: Divider(color: AppColors.border)),
+                  Expanded(child: Divider(color: Color(0xFFE0E0E0), thickness: 1)),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('OR', style: TextStyle(color: AppColors.textSecondary)),
+                    child: Text('OR', style: TextStyle(color: Color(0xFF757575), fontWeight: FontWeight.w600)),
                   ),
-                  Expanded(child: Divider(color: AppColors.border)),
+                  Expanded(child: Divider(color: Color(0xFFE0E0E0), thickness: 1)),
                 ],
               ),
-              const SizedBox(height: 32),
-              _buildSocialButton('Google', const Color(0xFFDB4437)),
+              const SizedBox(height: 24),
+              _buildSocialButton('Google', const Color(0xFFEB4335)),
               const SizedBox(height: 12),
               _buildSocialButton('Naver', const Color(0xFF03C75A)),
               const SizedBox(height: 12),
               _buildSocialButton('Kakao', const Color(0xFFFEE500), textColor: Colors.black87),
+              const SizedBox(height: 12),
+              _buildSocialButton('Apple', Colors.black),
               const SizedBox(height: 32),
               TextButton(
                 onPressed: () => Navigator.push(
@@ -268,7 +363,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: const Text(
                   'Don\'t have an account? Sign Up',
-                  style: TextStyle(color: AppColors.accent),
+                  style: TextStyle(color: Color(0xFF757575), fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -280,26 +375,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildSocialButton(String label, Color color, {Color textColor = Colors.white}) {
     return ElevatedButton(
-      onPressed: () {
-        final provider = label.toLowerCase();
-        // ApiClient의 baseUrl을 활용하여 백엔드 주소 도출 (api/v1 제거)
-        final baseUrl = ApiClient().dio.options.baseUrl.replaceAll('/api/v1', '');
-        final authUrl = "$baseUrl/oauth2/authorization/$provider";
-        
-        // Flutter Web의 경우 브라우저 창 자체를 이동시킴
-        html.window.location.href = authUrl;
-      },
+      onPressed: () => _handleNativeSocialLogin(label.toLowerCase()),
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
         padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: const StadiumBorder(),
         elevation: 0,
       ),
       child: Text(
         'Continue with $label',
         style: TextStyle(
           color: textColor,
-          fontSize: 16,
+          fontSize: 15,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -308,18 +395,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
   InputDecoration _buildInputDecoration(String label, IconData icon) {
     return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: AppColors.textSecondary),
-      prefixIcon: Icon(icon, color: AppColors.primary),
-      filled: true,
-      fillColor: AppColors.surface,
+      hintText: label,
+      hintStyle: const TextStyle(color: Color(0xFFBDBDBD)),
+      prefixIcon: Icon(icon, color: const Color(0xFF757575)),
+      filled: false,
+      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.border),
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFF115D33), width: 1.5),
       ),
     );
   }

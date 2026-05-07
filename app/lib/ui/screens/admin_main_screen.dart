@@ -24,15 +24,15 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text('ADMIN CONSOLE', 
-          style: GoogleFonts.oswald(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+          style: GoogleFonts.oswald(color: const Color(0xFF115D33), fontWeight: FontWeight.bold, letterSpacing: 1.2)),
         elevation: 0,
-        backgroundColor: AppColors.primary,
+        backgroundColor: Colors.transparent,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
+            icon: const Icon(Icons.logout, color: Color(0xFF115D33)),
             onPressed: () => Navigator.pushReplacementNamed(context, '/'), 
           )
         ],
@@ -41,8 +41,8 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.textSecondary,
+        selectedItemColor: const Color(0xFF115D33),
+        unselectedItemColor: const Color(0xFF757575),
         backgroundColor: Colors.white,
         type: BottomNavigationBarType.fixed,
         items: const [
@@ -124,10 +124,11 @@ class _AdminBoxTabState extends State<AdminBoxTab> {
             controller: _searchController,
             decoration: InputDecoration(
               hintText: 'Search boxes by name or owner...',
-              prefixIcon: const Icon(Icons.search, color: AppColors.primary),
-              filled: true,
-              fillColor: AppColors.surface,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              prefixIcon: const Icon(Icons.search, color: Color(0xFF115D33)),
+              filled: false,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF115D33))),
             ),
           ),
         ),
@@ -142,8 +143,10 @@ class _AdminBoxTabState extends State<AdminBoxTab> {
                   itemBuilder: (context, index) {
                     final box = _filteredBoxes[index];
                     return Card(
+                      color: Colors.white,
+                      elevation: 0,
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE0E0E0))),
                       child: ListTile(
                         contentPadding: const EdgeInsets.all(16),
                         title: Text(box['name'], style: GoogleFonts.notoSans(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -162,7 +165,7 @@ class _AdminBoxTabState extends State<AdminBoxTab> {
                               scale: 0.8,
                               child: Switch(
                                 value: box['isAutoWodEnabled'] ?? false,
-                                activeColor: AppColors.primary,
+                                activeColor: const Color(0xFF115D33),
                                 onChanged: (val) => _toggleAutoWod(box['id'], box['isAutoWodEnabled']),
                               ),
                             ),
@@ -238,10 +241,11 @@ class _AdminUserTabState extends State<AdminUserTab> {
             controller: _searchController,
             decoration: InputDecoration(
               hintText: 'Search users by nickname or email...',
-              prefixIcon: const Icon(Icons.search, color: AppColors.primary),
-              filled: true,
-              fillColor: AppColors.surface,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              prefixIcon: const Icon(Icons.search, color: Color(0xFF115D33)),
+              filled: false,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF115D33))),
             ),
           ),
         ),
@@ -258,21 +262,21 @@ class _AdminUserTabState extends State<AdminUserTab> {
                     final user = _filteredUsers[index];
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: AppColors.primary.withOpacity(0.1),
-                        child: const Icon(Icons.person, color: AppColors.primary),
+                        backgroundColor: const Color(0xFF115D33).withOpacity(0.1),
+                        child: const Icon(Icons.person, color: Color(0xFF115D33)),
                       ),
-                      title: Text(user['nickname'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                      title: Text(user['nickname'], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(user['email'], style: const TextStyle(fontSize: 12)),
+                          Text(user['email'], style: const TextStyle(fontSize: 12, color: Color(0xFF757575))),
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              Icon(Icons.stars, size: 14, color: AppColors.primary.withOpacity(0.7)),
+                              Icon(Icons.stars, size: 14, color: const Color(0xFF115D33).withOpacity(0.7)),
                               const SizedBox(width: 4),
                               Text('${user['tier']} (${user['points']} pts)', 
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF115D33))),
                             ],
                           ),
                         ],
@@ -367,8 +371,8 @@ class _AdminAiTabState extends State<AdminAiTab> {
               titleTextStyle: GoogleFonts.notoSans(fontWeight: FontWeight.bold, fontSize: 18),
             ),
             calendarStyle: const CalendarStyle(
-              todayDecoration: BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
-              selectedDecoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+              todayDecoration: BoxDecoration(color: Color(0xFFBDBDBD), shape: BoxShape.circle),
+              selectedDecoration: BoxDecoration(color: Color(0xFF115D33), shape: BoxShape.circle),
             ),
             onDaySelected: (selectedDay, focusedDay) {
               setState(() {
@@ -403,6 +407,9 @@ class _AdminAiTabState extends State<AdminAiTab> {
                 itemBuilder: (context, index) {
                   final wod = _selectedDateWods[index];
                     return Card(
+                      color: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE0E0E0))),
                       margin: const EdgeInsets.symmetric(vertical: 4),
                       child: ListTile(
                         title: Text(wod['title'], style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -423,10 +430,11 @@ class _AdminAiTabState extends State<AdminAiTab> {
             icon: const Icon(Icons.add), 
             label: const Text('New Global WOD'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
+              backgroundColor: const Color(0xFF115D33),
               foregroundColor: Colors.white,
               minimumSize: const Size.fromHeight(50),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: const StadiumBorder(),
+              elevation: 0,
             ),
           ),
         )

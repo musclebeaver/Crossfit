@@ -44,7 +44,16 @@ public class WodController {
     @GetMapping
     public ApiResponse<List<WodResponse>> getWods(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam(required = false) Long boxId) {
+            @RequestParam(required = false) Long boxId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        if (boxId != null && userDetails != null) {
+            User user = userRepository.findByEmail(userDetails.getUsername())
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+            if (user.getBoxId() == null || !user.getBoxId().equals(boxId)) {
+                throw new AccessDeniedException("Access denied: You are not an approved member of this box.");
+            }
+        }
 
         List<Wod> wods;
         if (boxId != null) {

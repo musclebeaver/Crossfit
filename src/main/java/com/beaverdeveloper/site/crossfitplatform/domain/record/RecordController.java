@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.*;
 import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -66,7 +67,16 @@ public class RecordController {
                         @RequestParam(required = false) Long boxId,
                         @RequestParam(required = false) Long cursorRank,
                         @RequestParam(defaultValue = "20") int size,
-                        @RequestParam(required = false) String nickname) {
+                        @RequestParam(required = false) String nickname,
+                        @AuthenticationPrincipal UserDetails userDetails) {
+                        
+                if (boxId != null) {
+                        User user = userRepository.findByEmail(userDetails.getUsername())
+                                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                        if (user.getBoxId() == null || !user.getBoxId().equals(boxId)) {
+                                throw new AccessDeniedException("Access denied: You are not an approved member of this box.");
+                        }
+                }
 
                 CursorResponse<RankingResponse> response = recordService.getRankings(wodId, boxId, cursorRank, size,
                                 nickname);

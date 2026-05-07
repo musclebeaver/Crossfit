@@ -32,6 +32,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-mail'
     implementation 'com.google.auth:google-auth-library-oauth2-http:1.19.0' // Potential Gemini dependency upgrade
     
+    // Firebase Admin (for FCM Push Notifications)
+    implementation 'com.google.firebase:firebase-admin:9.2.0'
+    
     // Swagger/OpenAPI
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
 

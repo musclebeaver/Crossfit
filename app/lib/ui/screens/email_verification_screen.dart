@@ -61,45 +61,48 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('이메일 인증', style: TextStyle(color: AppColors.textPrimary, fontSize: 28, fontWeight: FontWeight.bold)),
+            const Text('이메일 인증', style: TextStyle(color: Colors.black87, fontSize: 28, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            Text('${widget.email}로 발송된 6자리 인증 번호를 입력해 주세요.', style: const TextStyle(color: AppColors.textSecondary, fontSize: 16)),
+            Text('${widget.email}로 발송된 6자리 인증 번호를 입력해 주세요.', style: const TextStyle(color: Color(0xFF757575), fontSize: 16)),
             const SizedBox(height: 48),
             TextField(
               controller: _codeController,
               keyboardType: TextInputType.number,
               maxLength: 6,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 24, letterSpacing: 8),
+              style: const TextStyle(color: Colors.black87, fontSize: 24, letterSpacing: 8),
               textAlign: TextAlign.center,
               decoration: InputDecoration(
-                fillColor: AppColors.surface,
-                filled: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                filled: false,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF115D33), width: 1.5)),
               ),
             ),
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: _isLoading ? null : _handleVerify,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: const Color(0xFF115D33),
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: const StadiumBorder(),
+                elevation: 0,
               ),
               child: _isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('인증하기', style: TextStyle(fontSize: 18, color: Colors.white)),
+                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('인증하기', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
             ),
             const SizedBox(height: 16),
             TextButton(
               onPressed: _resendCode,
-              child: const Text('인증 번호 재발송', style: TextStyle(color: AppColors.accent)),
+              style: TextButton.styleFrom(foregroundColor: const Color(0xFF115D33)),
+              child: const Text('인증 번호 재발송', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../styles/app_colors.dart';
 import '../../core/api/api_client.dart';
+import '../../core/services/local_record_service.dart';
+import '../../core/services/sync_manager.dart';
 
 class RecordEntryScreen extends StatefulWidget {
   final dynamic wod;
@@ -125,13 +127,34 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
     } catch (e) {
       debugPrint("Save Record Error: $e");
       if (mounted) {
-        String message = 'Failed to save record: Connection error';
-        if (e is DioException && e.response != null && e.response?.data != null) {
-          message = 'Failed to save record: ${e.response?.data['message'] ?? 'Unknown error'}';
+        if (e is DioException && (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.sendTimeout || e.type == DioExceptionType.receiveTimeout || e.type == DioExceptionType.connectionError)) {
+          // 네트워크 오류 시 로컬 저장
+          final recordData = {
+            'wodId': widget.wod['id'],
+            'resultValue': resultValue,
+            'isRx': _isRx,
+            'isCapped': _isCapped,
+          };
+          await LocalRecordService.saveRecord(recordData);
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Network error. Record saved locally and will sync when online.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
+        } else {
+          String message = 'Failed to save record: Connection error';
+          if (e is DioException && e.response != null && e.response?.data != null) {
+            message = 'Failed to save record: ${e.response?.data['message'] ?? 'Unknown error'}';
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message), backgroundColor: Colors.red),
+          );
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Colors.red),
-        );
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -143,13 +166,13 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
     final type = widget.wod['type'];
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(widget.wod['title'] ?? 'Record Result', style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(widget.wod['title'] ?? 'Record Result', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF115D33))),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF115D33)),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -169,12 +192,13 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
             ElevatedButton(
               onPressed: _isSaving ? null : _handleSave,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: const Color(0xFF115D33),
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: const StadiumBorder(),
+                elevation: 0,
               ),
               child: _isSaving 
-                ? const CircularProgressIndicator(color: Colors.white)
+                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                 : const Text('Record Result', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
@@ -187,22 +211,22 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: const Color(0xFFE0E0E0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.fitness_center, color: AppColors.primary, size: 20),
+              const Icon(Icons.fitness_center, color: Color(0xFF115D33), size: 20),
               const SizedBox(width: 8),
-              Text(widget.wod['type'], style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+              Text(widget.wod['type'], style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF115D33))),
             ],
           ),
           const SizedBox(height: 12),
-          Text(widget.wod['description'] ?? '', style: const TextStyle(color: AppColors.textSecondary)),
+          Text(widget.wod['description'] ?? '', style: const TextStyle(color: Color(0xFF757575))),
         ],
       ),
     );
@@ -211,7 +235,7 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
   Widget _buildTimerUI() {
     return Column(
       children: [
-        Text(_formattedTime, style: const TextStyle(fontSize: 64, fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontFeatures: [FontFeature.tabularFigures()])),
+        Text(_formattedTime, style: const TextStyle(fontSize: 64, fontWeight: FontWeight.bold, color: Colors.black87, fontFeatures: [FontFeature.tabularFigures()])),
         const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -219,7 +243,7 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
             _buildCircleButton(
               onPressed: _stopwatch.isRunning ? _stopTimer : _startTimer,
               icon: _stopwatch.isRunning ? Icons.pause : Icons.play_arrow,
-              color: _stopwatch.isRunning ? Colors.orange : Colors.green,
+              color: _stopwatch.isRunning ? Colors.orange : const Color(0xFF115D33),
             ),
             const SizedBox(width: 24),
             _buildCircleButton(
@@ -230,7 +254,7 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
           ],
         ),
         const SizedBox(height: 32),
-        const Text('OR Manual Entry (Min : Sec)', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+        const Text('OR Manual Entry (Min : Sec)', style: TextStyle(color: Color(0xFF757575), fontSize: 13)),
         const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -241,12 +265,19 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
                 controller: _minController,
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
-                decoration: InputDecoration(hintText: 'Min', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+                decoration: InputDecoration(
+                  hintText: 'Min', 
+                  hintStyle: const TextStyle(color: Color(0xFFBDBDBD)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF115D33))),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                ),
               ),
             ),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Text(':', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              child: Text(':', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
             ),
             SizedBox(
               width: 80,
@@ -254,7 +285,14 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
                 controller: _secController,
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
-                decoration: InputDecoration(hintText: 'Sec', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+                decoration: InputDecoration(
+                  hintText: 'Sec', 
+                  hintStyle: const TextStyle(color: Color(0xFFBDBDBD)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF115D33))),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                ),
               ),
             ),
           ],
@@ -268,9 +306,9 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
               onChanged: (val) {
                 setState(() => _isCapped = val ?? false);
               },
-              activeColor: AppColors.primary,
+              activeColor: const Color(0xFF115D33),
             ),
-            const Text('Time Capped (Did not finish)', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+            const Text('Time Capped (Did not finish)', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
           ],
         ),
       ],
@@ -280,9 +318,9 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
   Widget _buildCounterUI() {
     return Column(
       children: [
-        const Text('REPS / ROUNDS', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+        const Text('REPS / ROUNDS', style: TextStyle(color: Color(0xFF757575), fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
-        Text('$_counter', style: const TextStyle(fontSize: 80, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+        Text('$_counter', style: const TextStyle(fontSize: 80, fontWeight: FontWeight.bold, color: Colors.black87)),
         const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -304,13 +342,13 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
                 _repsController.text = _counter.toString();
               }),
               icon: Icons.add,
-              color: AppColors.primary,
+              color: const Color(0xFF115D33),
               size: 80,
             ),
           ],
         ),
         const SizedBox(height: 32),
-        const Text('OR Manual Entry', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+        const Text('OR Manual Entry', style: TextStyle(color: Color(0xFF757575), fontSize: 13)),
         const SizedBox(height: 12),
         SizedBox(
           width: 120,
@@ -323,7 +361,14 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
                 _counter = int.tryParse(val) ?? 0;
               });
             },
-            decoration: InputDecoration(hintText: 'Reps', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+            decoration: InputDecoration(
+              hintText: 'Reps', 
+              hintStyle: const TextStyle(color: Color(0xFFBDBDBD)),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF115D33))),
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            ),
           ),
         ),
       ],
@@ -335,13 +380,15 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
       controller: _weightController,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       textAlign: TextAlign.center,
-      style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
+      style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.black87),
       decoration: InputDecoration(
         labelText: 'Result Weight (kg)',
+        labelStyle: const TextStyle(color: Color(0xFF757575)),
         suffixText: 'kg',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-        filled: true,
-        fillColor: Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF115D33))),
+        filled: false,
       ),
     );
   }
@@ -354,8 +401,8 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
           label: const Text('Rx\'d'),
           selected: _isRx,
           onSelected: (val) => setState(() => _isRx = true),
-          selectedColor: AppColors.primary,
-          labelStyle: TextStyle(color: _isRx ? Colors.white : AppColors.textPrimary, fontWeight: FontWeight.bold),
+          selectedColor: const Color(0xFF115D33),
+          labelStyle: TextStyle(color: _isRx ? Colors.white : Colors.black87, fontWeight: FontWeight.bold),
         ),
         const SizedBox(width: 16),
         ChoiceChip(
@@ -363,7 +410,7 @@ class _RecordEntryScreenState extends State<RecordEntryScreen> {
           selected: !_isRx,
           onSelected: (val) => setState(() => _isRx = false),
           selectedColor: Colors.orange,
-          labelStyle: TextStyle(color: !_isRx ? Colors.white : AppColors.textPrimary, fontWeight: FontWeight.bold),
+          labelStyle: TextStyle(color: !_isRx ? Colors.white : Colors.black87, fontWeight: FontWeight.bold),
         ),
       ],
     );

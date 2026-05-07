@@ -2,6 +2,9 @@ package com.beaverdeveloper.site.crossfitplatform.global.init;
 
 import com.beaverdeveloper.site.crossfitplatform.domain.box.Box;
 import com.beaverdeveloper.site.crossfitplatform.domain.box.BoxRepository;
+import com.beaverdeveloper.site.crossfitplatform.domain.record.RankingHistory;
+import com.beaverdeveloper.site.crossfitplatform.domain.record.RankingHistoryRepository;
+import com.beaverdeveloper.site.crossfitplatform.domain.record.DailyRankingScheduler;
 import com.beaverdeveloper.site.crossfitplatform.domain.record.Record;
 import com.beaverdeveloper.site.crossfitplatform.domain.record.RecordService;
 import com.beaverdeveloper.site.crossfitplatform.domain.user.User;
@@ -34,6 +37,8 @@ public class DummyDataInit implements CommandLineRunner {
     private final WodRepository wodRepository;
     private final RecordService recordService;
     private final PasswordEncoder passwordEncoder;
+    private final RankingHistoryRepository rankingHistoryRepository;
+    private final DailyRankingScheduler dailyRankingScheduler;
 
     @Override
     @Transactional
@@ -162,6 +167,36 @@ public class DummyDataInit implements CommandLineRunner {
             }
         }
 
-        log.info("Successfully generated Test Data! (3 Admins, 10 Coaches, 30 Users, 10 Boxes, 2 WODs)");
+        // 7. My Records 탭의 트렌드 차트를 시각적으로 돋보이게 채우기 위해 5일~2일 전의 과거 랭킹 히스토리 강제 주입
+        for (int d = 5; d >= 2; d--) {
+            Wod pastWod = Wod.builder()
+                    .title("Past Throwdown " + d)
+                    .description("Auto-generated past WOD " + d)
+                    .type(WodType.FOR_TIME)
+                    .timeCap(600)
+                    .date(LocalDate.now().minusDays(d))
+                    .isAiGenerated(false)
+                    .build();
+            pastWod = wodRepository.save(pastWod);
+
+            for (User u : users) {
+                RankingHistory hist = RankingHistory.builder()
+                        .wodId(pastWod.getId())
+                        .userId(u.getId())
+                        .rank(1 + random.nextInt(30))
+                        .score((double)(300 + random.nextInt(200)))
+                        .isRx(random.nextBoolean())
+                        .date(pastWod.getDate())
+                        .build();
+                rankingHistoryRepository.save(hist);
+            }
+        }
+
+        // 8. 어제(Yesterday) WOD에 대해 자정 스케줄러 강제 1회 실행
+        // (금일 생성된 글로벌 기록들이 과거 보관소 DB로 즉각 이관되도록 조치)
+        log.info("Triggering Daily Ranking Scheduler for initial load...");
+        dailyRankingScheduler.snapshotDailyRankings();
+
+        log.info("Successfully generated Test Data! (3 Admins, 10 Coaches, 30 Users, 10 Boxes, Past WODs & Histories)");
     }
 }

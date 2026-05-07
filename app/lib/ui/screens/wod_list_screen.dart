@@ -38,16 +38,17 @@ class _WodListScreenState extends State<WodListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('DAILY WOD', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: AppColors.background,
+        title: const Text('DAILY WOD', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF115D33))),
+        backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          IconButton(icon: const Icon(Icons.person), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.person, color: Color(0xFF115D33)), onPressed: () {}),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF115D33)))
           : _wods.isEmpty
               ? _buildEmptyState()
               : ListView.builder(
@@ -63,9 +64,9 @@ class _WodListScreenState extends State<WodListScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.event_busy, size: 64, color: AppColors.textSecondary),
+          const Icon(Icons.event_busy, size: 64, color: Color(0xFF757575)),
           const SizedBox(height: 16),
-          Text('No WODs for today', style: TextStyle(color: AppColors.textSecondary, fontSize: 18)),
+          const Text('No WODs for today', style: TextStyle(color: Color(0xFF757575), fontSize: 18)),
         ],
       ),
     );
@@ -73,9 +74,10 @@ class _WodListScreenState extends State<WodListScreen> {
 
   Widget _buildWodCard(WodModel wod) {
     return Card(
-      color: AppColors.surface,
+      color: Colors.white,
+      elevation: 0,
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE0E0E0))),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
@@ -87,28 +89,28 @@ class _WodListScreenState extends State<WodListScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.2),
+                    color: const Color(0xFF115D33).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     wod.type,
-                    style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                    style: const TextStyle(color: Color(0xFF115D33), fontWeight: FontWeight.bold),
                   ),
                 ),
                 if (wod.timeCap != null)
                   Text('Time Cap: ${wod.timeCap! ~/ 60}m',
-                      style: const TextStyle(color: AppColors.accent)),
+                      style: const TextStyle(color: Color(0xFF757575))),
               ],
             ),
             const SizedBox(height: 16),
             Text(
               wod.title,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 22, fontWeight: FontWeight.bold),
+              style: const TextStyle(color: Colors.black87, fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
               wod.description,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 16, height: 1.5),
+              style: const TextStyle(color: Color(0xFF757575), fontSize: 16, height: 1.5),
             ),
             const SizedBox(height: 20),
             Row(
@@ -117,10 +119,12 @@ class _WodListScreenState extends State<WodListScreen> {
                   child: ElevatedButton(
                     onPressed: () {},
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.success,
+                      backgroundColor: const Color(0xFF115D33),
                       padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: const StadiumBorder(),
+                      elevation: 0,
                     ),
-                    child: const Text('Record result', style: TextStyle(color: Colors.white)),
+                    child: const Text('Record result', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -128,9 +132,10 @@ class _WodListScreenState extends State<WodListScreen> {
                   onPressed: () {},
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                    side: const BorderSide(color: AppColors.border),
+                    side: const BorderSide(color: Color(0xFFE0E0E0)),
+                    shape: const StadiumBorder(),
                   ),
-                  child: const Text('Ranking', style: TextStyle(color: AppColors.textSecondary)),
+                  child: const Text('Ranking', style: TextStyle(color: Color(0xFF757575), fontWeight: FontWeight.bold)),
                 ),
               ],
             ),

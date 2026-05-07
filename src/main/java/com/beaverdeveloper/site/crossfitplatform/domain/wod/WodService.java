@@ -16,6 +16,8 @@ public class WodService {
     private final WodRepository wodRepository;
     private final WodAiService wodAiService;
     private final ObjectMapper objectMapper;
+    private final com.beaverdeveloper.site.crossfitplatform.domain.notification.NotificationService notificationService;
+    private final com.beaverdeveloper.site.crossfitplatform.domain.user.UserRepository userRepository;
 
     @Transactional
     public Wod createAiWod(Long boxId, String boxName, String type, String requirements, LocalDate date) {
@@ -32,7 +34,9 @@ public class WodService {
                     .date(date)
                     .build();
 
-            return wodRepository.save(wod);
+            Wod savedWod = wodRepository.save(wod);
+            notifyBoxMembers(boxId, "오늘의 와드가 등록되었습니다!", response.getTitle());
+            return savedWod;
         } catch (Exception e) {
             log.error("AI WOD creation failed for boxId: {}, type: {}", boxId, type, e);
             throw new RuntimeException("AI WOD 생성에 실패했습니다: " + e.getMessage());
@@ -65,7 +69,23 @@ public class WodService {
                     .date(request.getDate())
                     .build();
         }
-        return wodRepository.save(wod);
+        Wod savedWod = wodRepository.save(wod);
+        
+        // Notify members if newly created (no ID previously or just notify update anyway)
+        notifyBoxMembers(request.getBoxId(), "코치님이 와드를 업데이트했습니다!", request.getTitle());
+        
+        return savedWod;
+    }
+    
+    private void notifyBoxMembers(Long boxId, String title, String body) {
+        if (boxId == null) return;
+        java.util.List<com.beaverdeveloper.site.crossfitplatform.domain.user.User> members = userRepository.findAllByBoxId(boxId);
+        for (com.beaverdeveloper.site.crossfitplatform.domain.user.User user : members) {
+            String token = user.getFcmToken();
+            if (token != null && !token.isEmpty()) {
+                notificationService.sendPushNotification(token, title, body);
+            }
+        }
     }
 
     @lombok.Getter

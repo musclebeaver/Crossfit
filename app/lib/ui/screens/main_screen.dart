@@ -5,6 +5,7 @@ import 'ranking_tab.dart';
 import 'records_tab.dart';
 import 'my_box_tab.dart';
 import 'profile_tab.dart';
+import '../../core/services/sync_manager.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -15,6 +16,12 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    SyncManager.syncPendingRecords();
+  }
 
   final List<Widget> _screens = [
     const WodTab(),
@@ -27,7 +34,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       body: IndexedStack(
         index: _selectedIndex,
         children: _screens,
@@ -37,8 +44,8 @@ class _MainScreenState extends State<MainScreen> {
         onTap: (index) => setState(() => _selectedIndex = index),
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.textSecondary,
+        selectedItemColor: const Color(0xFF115D33),
+        unselectedItemColor: const Color(0xFF757575),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.fitness_center), label: 'WOD'),
           BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Ranking'),
@@ -58,7 +65,7 @@ class PlaceholderWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text(text, style: const TextStyle(fontSize: 24, color: AppColors.textPrimary)),
+      child: Text(text, style: const TextStyle(fontSize: 24, color: Colors.black87)),
     );
   }
 }

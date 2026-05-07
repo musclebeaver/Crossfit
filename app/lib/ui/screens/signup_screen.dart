@@ -279,32 +279,33 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF757575)),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.symmetric(horizontal: 36.0, vertical: 24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
               'CREATE ACCOUNT',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: Color(0xFF115D33),
                 fontSize: 28,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.5,
               ),
             ),
             const SizedBox(height: 8),
             const Text(
               'Join the Crossfit Competition Platform',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+              style: TextStyle(color: Color(0xFF757575), fontSize: 16),
             ),
             const SizedBox(height: 48),
             Row(
@@ -328,16 +329,17 @@ class _SignupScreenState extends State<SignupScreen> {
                   Padding(
                     padding: const EdgeInsets.only(left: 8, top: 4),
                     child: SizedBox(
-                      height: 48,
+                      height: 52,
                       child: ElevatedButton(
                         onPressed: (_isLoading || _isEmailVerified) ? null : _sendEmailVerification,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _isEmailVerified ? Colors.grey : AppColors.primary,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          backgroundColor: _isEmailVerified ? Colors.grey : const Color(0xFF115D33),
+                          shape: const StadiumBorder(),
+                          elevation: 0,
                         ),
                         child: Text(
                           _isOtpSent ? 'Resend' : 'Send Code', 
-                          style: const TextStyle(color: Colors.white, fontSize: 13)
+                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)
                         ),
                       ),
                     ),
@@ -360,14 +362,15 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   const SizedBox(width: 8),
                   SizedBox(
-                    height: 48,
+                    height: 52,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _verifyEmailCode,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: const StadiumBorder(),
+                        elevation: 0,
                       ),
-                      child: const Text('Verify', style: TextStyle(color: Colors.white)),
+                      child: const Text('Verify', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
@@ -431,13 +434,17 @@ class _SignupScreenState extends State<SignupScreen> {
             ElevatedButton(
               onPressed: _isLoading ? null : _handleSignup,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: const Color(0xFF115D33),
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: const StadiumBorder(),
+                elevation: 0,
               ),
               child: _isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Sign Up', style: TextStyle(fontSize: 18, color: Colors.white)),
+                  ? const SizedBox(
+                      height: 20, width: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Text('Sign Up', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
             ),
           ],
         ),
@@ -453,24 +460,28 @@ class _SignupScreenState extends State<SignupScreen> {
       obscureText: obscure,
       enabled: enabled,
       inputFormatters: inputFormatters,
-      style: TextStyle(color: enabled ? AppColors.textPrimary : AppColors.textSecondary),
+      style: TextStyle(color: enabled ? Colors.black87 : const Color(0xFFBDBDBD)),
       decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: AppColors.textSecondary),
+        hintText: label,
+        hintStyle: const TextStyle(color: Color(0xFFBDBDBD)),
         errorText: errorText,
         helperText: helperText,
         helperStyle: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-        prefixIcon: Icon(icon, color: AppColors.primary),
-        filled: true,
-        fillColor: enabled ? AppColors.surface : AppColors.border.withOpacity(0.1),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        prefixIcon: Icon(icon, color: const Color(0xFF757575)),
+        filled: false,
+        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
         ),
         disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.border.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFEEEEEE)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF115D33), width: 1.5),
         ),
       ),
     );

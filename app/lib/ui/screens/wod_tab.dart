@@ -65,9 +65,9 @@ class _WodTabState extends State<WodTab> {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Workout of the Day', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+        title: const Text('Workout of the Day', style: TextStyle(color: Color(0xFF115D33), fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -97,9 +97,9 @@ class _WodTabState extends State<WodTab> {
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          Container(width: 4, height: 24, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
+          Container(width: 4, height: 24, decoration: BoxDecoration(color: const Color(0xFF115D33), borderRadius: BorderRadius.circular(2))),
           const SizedBox(width: 8),
-          Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+          Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
         ],
       ),
     );
@@ -109,8 +109,8 @@ class _WodTabState extends State<WodTab> {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: AppColors.border)),
-      color: isGlobal ? AppColors.surface : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE0E0E0))),
+      color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -119,23 +119,23 @@ class _WodTabState extends State<WodTab> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(wod['title'] ?? 'No Title', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                Text(wod['title'] ?? 'No Title', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                  child: Text(wod['type'] ?? 'WOD', style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+                  decoration: BoxDecoration(color: const Color(0xFF115D33).withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                  child: Text(wod['type'] ?? 'WOD', style: const TextStyle(color: Color(0xFF115D33), fontSize: 12, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            Text(wod['description'] ?? '', style: const TextStyle(fontSize: 15, color: AppColors.textSecondary, height: 1.5)),
+            Text(wod['description'] ?? '', style: const TextStyle(fontSize: 15, color: Color(0xFF757575), height: 1.5)),
             const SizedBox(height: 16),
             if (wod['timeCap'] != null && wod['timeCap'] > 0)
               Row(
                 children: [
-                  const Icon(Icons.timer_outlined, size: 16, color: AppColors.textSecondary),
+                  const Icon(Icons.timer_outlined, size: 16, color: Color(0xFF757575)),
                   const SizedBox(width: 4),
-                  Text("Time Cap: ${wod['timeCap'] ~/ 60} min", style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  Text("Time Cap: ${wod['timeCap'] ~/ 60} min", style: const TextStyle(color: Color(0xFF757575), fontSize: 13)),
                 ],
               ),
             const SizedBox(height: 16),
@@ -159,10 +159,11 @@ class _WodTabState extends State<WodTab> {
                 icon: const Icon(Icons.edit_note, size: 20),
                 label: const Text('Record Result', style: TextStyle(fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: const Color(0xFF115D33),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: const StadiumBorder(),
+                  elevation: 0,
                 ),
               ),
             ),

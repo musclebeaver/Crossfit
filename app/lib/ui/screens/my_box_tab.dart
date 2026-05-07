@@ -142,9 +142,9 @@ class _MyBoxTabState extends State<MyBoxTab> {
     if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('My Box', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+        title: const Text('My Box', style: TextStyle(color: Color(0xFF115D33), fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
@@ -154,8 +154,8 @@ class _MyBoxTabState extends State<MyBoxTab> {
                 final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const BoxRegistrationScreen()));
                 if (result == true) _fetchInitialData();
               },
-              icon: const Icon(Icons.add, color: AppColors.primary),
-              label: const Text("Register Box", style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+              icon: const Icon(Icons.add, color: Color(0xFF115D33)),
+              label: const Text("Register Box", style: TextStyle(color: Color(0xFF115D33), fontWeight: FontWeight.bold)),
             ),
         ],
       ),
@@ -174,20 +174,27 @@ class _MyBoxTabState extends State<MyBoxTab> {
 
   List<Widget> _buildCoachUI() {
     return [
-      const Text("Management", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      const Text("Management", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
       const SizedBox(height: 12),
       if (_ownedBoxes.isEmpty)
-        const Center(child: Padding(padding: EdgeInsets.all(32), child: Text("You haven't registered a box yet.")))
+        const Center(child: Padding(padding: EdgeInsets.all(32), child: Text("You haven't registered a box yet.", style: TextStyle(color: Color(0xFF757575)))))
       else
         ..._ownedBoxes.map((box) => Card(
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: AppColors.border)),
+          color: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE0E0E0))),
           child: ListTile(
-            title: Text(box['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text(box['location']),
+            title: Text(box['name'], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+            subtitle: Text(box['location'], style: const TextStyle(color: Color(0xFF757575))),
             trailing: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF115D33), 
+                foregroundColor: Colors.white,
+                shape: const StadiumBorder(),
+                elevation: 0,
+              ),
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => BoxManagementScreen(boxId: box['id'], boxName: box['name']))),
-              child: const Text("Manage"),
+              child: const Text("Manage", style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ),
         )),
@@ -195,44 +202,65 @@ class _MyBoxTabState extends State<MyBoxTab> {
   }
 
   List<Widget> _buildUserUI() {
+    final status = _membershipStatus['status'];
+    Color statusColor = Colors.grey;
+    IconData statusIcon = Icons.help_outline;
+    
+    if (status == 'APPROVED') {
+      statusColor = const Color(0xFF115D33);
+      statusIcon = Icons.verified;
+    } else if (status == 'PENDING') {
+      statusColor = Colors.orange;
+      statusIcon = Icons.hourglass_empty;
+    } else if (status == 'REJECTED') {
+      statusColor = Colors.red;
+      statusIcon = Icons.cancel_outlined;
+    }
+
     return [
       if (_membershipStatus != null) ...[
-        const Text("My Status", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text("My Status", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
         const SizedBox(height: 12),
         Card(
-          color: AppColors.surface,
+          color: statusColor.withOpacity(0.05),
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: AppColors.primary)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: statusColor.withOpacity(0.2))),
           child: ListTile(
-            title: Text(_membershipStatus['boxName'], style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text("Status: ${_membershipStatus['status']}"),
-            trailing: Icon(
-              _membershipStatus['status'] == 'APPROVED' ? Icons.verified : Icons.hourglass_empty,
-              color: _membershipStatus['status'] == 'APPROVED' ? Colors.green : Colors.orange,
-            ),
+            title: Text(_membershipStatus['boxName'], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+            subtitle: Text("Status: $status", style: TextStyle(color: statusColor, fontWeight: FontWeight.bold)),
+            trailing: Icon(statusIcon, color: statusColor),
           ),
         ),
         const SizedBox(height: 32),
       ],
-      const Text("Find a Box", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      const Text("Find a Box", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
       const SizedBox(height: 12),
       TextField(
         decoration: InputDecoration(
           hintText: 'Search by name...',
-          prefixIcon: const Icon(Icons.search),
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          hintStyle: const TextStyle(color: Color(0xFFBDBDBD)),
+          prefixIcon: const Icon(Icons.search, color: Color(0xFF757575)),
+          filled: false,
+          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF115D33), width: 1.5)),
         ),
         onChanged: _searchBoxes,
       ),
       const SizedBox(height: 16),
       ..._searchResults.map((box) => ListTile(
-        title: Text(box['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(box['location']),
+        title: Text(box['name'], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+        subtitle: Text(box['location'], style: const TextStyle(color: Color(0xFF757575))),
         trailing: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF115D33), 
+            foregroundColor: Colors.white,
+            shape: const StadiumBorder(),
+            elevation: 0,
+          ),
           onPressed: () => _applyBox(box['id']),
-          child: const Text("Join"),
+          child: const Text("Join", style: TextStyle(fontWeight: FontWeight.bold)),
         ),
       )),
       if (_isLoadingMore)

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../styles/app_colors.dart';
 import '../../core/api/api_client.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/ad_banner_widget.dart';
 
 class RankingTab extends StatefulWidget {
   final int? initialWodId;
@@ -27,6 +29,8 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
   int? _selectedWodId;
   List<dynamic> _availableWods = [];
   dynamic _userProfile;
+  dynamic _membershipStatus;
+  List<String> _blockedUserIds = [];
 
   @override
   void initState() {
@@ -35,7 +39,70 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
     _tabController.addListener(_handleTabSelection);
     _scrollController.addListener(_onScroll);
     _selectedWodId = widget.initialWodId;
+    _loadBlockedUsers();
     _initializeData();
+  }
+
+  Future<void> _loadBlockedUsers() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _blockedUserIds = prefs.getStringList('blocked_users') ?? [];
+    });
+  }
+
+  Future<void> _blockUser(int userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    _blockedUserIds.add(userId.toString());
+    await prefs.setStringList('blocked_users', _blockedUserIds);
+    setState(() {
+      _rankings.removeWhere((item) => item['userId'] == userId);
+    });
+  }
+
+  Future<void> _reportUser(int userId, String nickname) async {
+    final reasonController = TextEditingController();
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Report $nickname'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Why are you reporting this user?'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                hintText: 'e.g. Offensive nickname, cheating, etc.',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            child: const Text('Submit', style: TextStyle(color: Colors.red))
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && reasonController.text.isNotEmpty) {
+      try {
+        await ApiClient().dio.post('/reports', data: {
+          'reportedUserId': userId,
+          'reason': 'USER_REPORT',
+          'details': reasonController.text,
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Report submitted. We will review it shortly.')));
+        }
+      } catch (e) {
+        debugPrint("Report Error: $e");
+      }
+    }
   }
 
   void _onScroll() {
@@ -70,6 +137,7 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
 
   Future<void> _initializeData() async {
     await _fetchUserProfile();
+    await _fetchMembershipStatus();
     await _fetchDailyWods();
     if (_availableWods.isNotEmpty && _selectedWodId == null) {
       _selectedWodId = _availableWods.first['id'];
@@ -85,6 +153,17 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
       }
     } catch (e) {
       debugPrint("Fetch Profile Error: $e");
+    }
+  }
+
+  Future<void> _fetchMembershipStatus() async {
+    try {
+      final res = await ApiClient().dio.get('/boxes/my-status');
+      if (res.data['success']) {
+        setState(() => _membershipStatus = res.data['data']);
+      }
+    } catch (e) {
+      debugPrint("Fetch Status Error: $e");
     }
   }
 
@@ -110,7 +189,9 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
     }
     
     final isBoxRanking = _tabController.index == 1;
-    if (isBoxRanking && (_userProfile == null || _userProfile['boxId'] == null)) {
+    final isApproved = _membershipStatus != null && _membershipStatus['status'] == 'APPROVED';
+
+    if (isBoxRanking && !isApproved) {
       setState(() {
         _rankings = [];
         _isLoading = false;
@@ -139,7 +220,7 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
         final data = res.data['data'];
         final List<dynamic> newEntries = data['content'] ?? [];
         setState(() {
-          _rankings = newEntries;
+          _rankings = newEntries.where((item) => !_blockedUserIds.contains(item['userId'].toString())).toList();
           _nextCursor = data['nextCursor'];
           _hasMore = data['hasNext'] ?? false;
           _isLoading = false;
@@ -220,20 +301,20 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Rankings', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+        title: const Text('Rankings', style: TextStyle(color: Color(0xFF115D33), fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(80),
+          preferredSize: const Size.fromHeight(110),
           child: Column(
             children: [
               TabBar(
                 controller: _tabController,
-                indicatorColor: AppColors.primary,
-                labelColor: AppColors.primary,
-                unselectedLabelColor: AppColors.textSecondary,
+                indicatorColor: const Color(0xFF115D33),
+                labelColor: const Color(0xFF115D33),
+                unselectedLabelColor: const Color(0xFFBDBDBD),
                 onTap: (index) {
                    setState(() {
                      _selectedWodId = null; // Reset selection on tab change to trigger auto-select
@@ -251,12 +332,14 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
                   onChanged: _onSearchChanged,
                   decoration: InputDecoration(
                     hintText: 'Search by nickname...',
-                    prefixIcon: const Icon(Icons.search, size: 20),
+                    hintStyle: const TextStyle(color: Color(0xFFBDBDBD)),
+                    prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF757575)),
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    filled: false,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF115D33), width: 1.5)),
                   ),
                 ),
               ),
@@ -287,8 +370,8 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
                                   _resetAndFetch();
                                 }
                               },
-                              selectedColor: AppColors.primary,
-                              labelStyle: TextStyle(color: isSelected ? Colors.white : AppColors.textPrimary),
+                              selectedColor: const Color(0xFF115D33),
+                              labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87),
                             ),
                           );
                         }).toList(),
@@ -300,8 +383,8 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
                     padding: const EdgeInsets.all(16.0),
                     child: Card(
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: AppColors.border)),
-                      color: AppColors.surface,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE0E0E0))),
+                      color: Colors.white,
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
@@ -310,16 +393,16 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Expanded(child: Text(_selectedWod['title'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+                                Expanded(child: Text(_selectedWod['title'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87))),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                                  child: Text(_selectedWod['type'], style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+                                  decoration: BoxDecoration(color: const Color(0xFF115D33).withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                                  child: Text(_selectedWod['type'], style: const TextStyle(color: Color(0xFF115D33), fontSize: 12, fontWeight: FontWeight.bold)),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 8),
-                            Text(_selectedWod['description'], style: const TextStyle(color: AppColors.textSecondary)),
+                            Text(_selectedWod['description'], style: const TextStyle(color: Color(0xFF757575))),
                           ],
                         ),
                       ),
@@ -327,8 +410,8 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
                   ),
                 Expanded(
                   child: _selectedWodId == null
-                      ? Center(child: Text(_tabController.index == 1 && (_userProfile == null || _userProfile['boxId'] == null) 
-                          ? "Join a box to see rankings" 
+                      ? Center(child: Text(_tabController.index == 1 && (_membershipStatus == null || _membershipStatus['status'] != 'APPROVED') 
+                          ? (_membershipStatus == null ? "Join a box to see rankings" : (_membershipStatus['status'] == 'PENDING' ? "Approval pending by coach" : "Membership rejected")) 
                           : "No WOD for today"))
                       : _rankings.isEmpty
                           ? _buildEmptyState()
@@ -351,6 +434,7 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
                               ),
                             ),
                 ),
+                const AdBannerWidget(),
               ],
             ),
     );
@@ -366,6 +450,48 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
     if (rank == 3) rankColor = const Color(0xFFCD7F32); // Bronze
 
     return ListTile(
+      onLongPress: () {
+        // Show report/block menu
+        showModalBottomSheet(
+          context: context,
+          builder: (context) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.report_problem, color: Colors.orange),
+                  title: const Text('Report User'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _reportUser(item['userId'], item['nickname']);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.block, color: Colors.red),
+                  title: const Text('Block User'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Block User'),
+                        content: Text('Are you sure you want to block ${item['nickname']}? You will no longer see their records.'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Block', style: TextStyle(color: Colors.red))),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      _blockUser(item['userId']);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
       leading: Container(
         width: 32,
         height: 32,
@@ -385,7 +511,7 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
       ),
       title: Row(
         children: [
-          Text(item['nickname'], style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(item['nickname'], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
           const SizedBox(width: 6),
           _buildTierBadge(item['tier']),
           if (item['isRx'] == true)
@@ -394,29 +520,35 @@ class _RankingTabState extends State<RankingTab> with SingleTickerProviderStateM
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  border: Border.all(color: AppColors.primary, width: 0.5),
+                  color: const Color(0xFF115D33).withOpacity(0.1),
+                  border: Border.all(color: const Color(0xFF115D33), width: 0.5),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text('Rx', style: TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.bold)),
+                child: const Text('Rx', style: TextStyle(color: Color(0xFF115D33), fontSize: 10, fontWeight: FontWeight.bold)),
               ),
             ),
         ],
       ),
       trailing: Text(
         '${item['displayValue']}',
-        style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
+        style: const TextStyle(color: Color(0xFF115D33), fontWeight: FontWeight.bold, fontSize: 16),
       ),
     );
   }
 
   Widget _buildEmptyState() {
     final isBoxRanking = _tabController.index == 1;
-    final hasNoBox = _userProfile != null && _userProfile['boxId'] == null;
+    final isApproved = _membershipStatus != null && _membershipStatus['status'] == 'APPROVED';
 
     String text = 'No records found yet!';
-    if (isBoxRanking && hasNoBox) {
-      text = 'Join a box to see your box rankings!';
+    if (isBoxRanking && !isApproved) {
+      if (_membershipStatus == null) {
+        text = 'Join a box to see your box rankings!';
+      } else if (_membershipStatus['status'] == 'PENDING') {
+        text = 'Approval pending. Please wait for coach approval.';
+      } else {
+        text = 'Membership application rejected.';
+      }
     } else if (_searchController.text.isNotEmpty) {
       text = 'No users found with that nickname.';
     }

@@ -21,6 +21,7 @@ public class RecordService {
     private final com.beaverdeveloper.site.crossfitplatform.domain.wod.WodRepository wodRepository;
     private final List<RankingStrategy> strategies;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final com.beaverdeveloper.site.crossfitplatform.domain.notification.NotificationService notificationService;
 
     private static final String RANKING_KEY_PREFIX = "rank:wod:";
 
@@ -59,11 +60,38 @@ public class RecordService {
             if (userBoxId != null) {
                 String boxKey = RANKING_KEY_PREFIX + wodId + ":box:" + userBoxId;
                 redisTemplate.opsForZSet().add(boxKey, record.getUserId().toString(), score);
+                notifyPushedDownUser(boxKey, record);
             }
         } else {
             // Box WOD: Save to specific box ranking only
             String boxKey = RANKING_KEY_PREFIX + wodId + ":box:" + wodBoxId;
             redisTemplate.opsForZSet().add(boxKey, record.getUserId().toString(), score);
+            notifyPushedDownUser(boxKey, record);
+        }
+    }
+    
+    private void notifyPushedDownUser(String boxKey, Record record) {
+        try {
+            Long newRank = redisTemplate.opsForZSet().reverseRank(boxKey, record.getUserId().toString());
+            if (newRank != null) {
+                // The person right below the new rank got pushed down
+                Set<Object> pushedDownUsers = redisTemplate.opsForZSet().reverseRange(boxKey, newRank + 1, newRank + 1);
+                if (pushedDownUsers != null && !pushedDownUsers.isEmpty()) {
+                    String pushedDownUserId = (String) pushedDownUsers.iterator().next();
+                    userRepository.findById(Long.valueOf(pushedDownUserId)).ifPresent(user -> {
+                        String fcmToken = user.getFcmToken();
+                        if (fcmToken != null && !fcmToken.isEmpty()) {
+                            notificationService.sendPushNotification(
+                                fcmToken,
+                                "🚨 랭킹 하락 알림",
+                                "누군가 당신의 기록을 깼습니다! 와드 랭킹을 확인해보세요."
+                            );
+                        }
+                    });
+                }
+            }
+        } catch (Exception e) {
+            // ignore ranking push fail
         }
     }
 

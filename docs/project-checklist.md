@@ -18,9 +18,13 @@
 - [x] **인프라 배포**: Docker-Compose 기반 서버, DB, Redis 및 Nginx 리버스 프록시 연동 세팅
 - [x] **어드민(Admin) 대시보드 API**: 코치/관리자가 박스 내 회원 통계 및 랭킹 추이를 한눈에 볼 수 있는 통계 API 구축
 - [x] **페이징 및 무한 스크롤 최적화**: 랭킹 조회 시 커서 기반 페이징(Cursor-based Pagination) 추가 고도화
+- [x] **박스 멤버십 승인 및 권한 분리 (Box Approval)**: 코치가 가입 대기자 목록을 승인/거절 시 유저 권한이 연동되는 로직 구축
+- [x] **푸시 알림 서버 인프라 (FCM)**: WOD 등록 시 박스 멤버 알림 및 랭킹 하락 시 개인 알림 발송 서비스(`NotificationService`) 구축
 
 ### ⏳ 추가 구현 필요 (Pending)
-- [ ] **푸시 알림 서버 로직**: 특정 WOD 등록 시 또는 가입 승인 시 클라이언트로 Firebase Cloud Messaging(FCM) 푸시 알림 발송 연동
+- [ ] **데이터 대량 로드 테스트**: 수백만 건의 레코드 발생 시 Redis 및 DB 쿼리 성능 추가 벤치마킹 및 최적화
+- [ ] **포인트/티어 시스템 고도화**: 운동 참여도 및 랭킹 점수에 따른 유저 티어 자동 갱신 로직의 고도화 (현재는 기본 로직만 존재)
+
 
 ---
 
@@ -38,9 +42,12 @@
 - [x] **박스(Box) 탐색 및 가입 연결**: 자신이 소속될 '크로스핏 박스' 검색 및 가입 신청 폼 이벤트 완성 (`my_box_tab`)
 - [x] **마이페이지 및 프로필 연동**: 닉네임 변경 API 및 플차트(FlChart)를 활용한 이전 WOD 랭킹 히스토리 조회 완료 (`profile_tab`, `records_tab`)
 - [x] **코치/어드민 기능 1부**: 코치 전용 화면에서 'AI WOD 자동 생성(Team Size, Format 옵션 포함)' 기능 연결 완료
+- [x] **박스 가입 승인 관리 UI**: 코치 화면에서 가입 신청한 회원들을 조회하고 승인/거절을 처리하는 UI 완벽 연동 (`box_management_screen.dart`)
+- [x] **FCM 푸시 알림 연동**: Firebase 플러그인 초기화, 디바이스 토큰 획득 및 알림 수신 리스너 통합 완료 (`PushNotificationService`)
 
 ### 🚀 추가 구현 필요 (Pending / In Progress)
 - [ ] **어드민(Admin) 대시보드 뷰 연결**: 전체 회원, 박스 통계 수치를 차트로 보여주는 통계 대시보드 UI 및 API 렌더링 추가 구현
+- [ ] **오프라인 / 지연 네트워크 대응**: 체육관 지하 등 와이파이 음영 구역에서 와드 기록 전송 시 튕기지 않도록 로컬 큐에 저장 후 재전송하는 UX 최적화 마련
 
 ---
 
@@ -50,8 +57,8 @@
 
 - [x] **CORS 정책 검증**: 허용된 도메인(앱 및 프론트 웹)에서만 API 호출과 소셜 로그인 리다이렉트가 가능하도록 `SecurityConfig` 내 Origin 검증 강화
 - [x] **Refresh Token 로테이션/탈취 방지**: JWT Access 토큰 외에 Refresh Token을 Redis에 화이트리스트/블랙리스트 방식으로 관리하여 탈취 시 즉각 폐기할 수 있는 체계 구성
-- [ ] **데이터 수평적 권한 제어(IDOR 방어)**: '유저 A'가 악의적으로 '유저 B'의 프라이빗 기록이나 개인정보 API를 호출(`api/v1/users/B_ID`)하지 못하도록, `@AuthenticationPrincipal` 검증 철저
+- [x] **데이터 수평적 권한 제어(IDOR 방어)**: `@AuthenticationPrincipal` 및 `boxId` 대조를 통해 타인의 기록/박스 정보 접근 차단 로직 적용
 - [x] **입력값 검증 및 XSS 방어**: 모든 API Request DTO에 `@Valid` (Size, NotBlank 등) 제약을 활성화하여 비정상적인 스크립트 인젝션 차단
-- [ ] **Rate Limiting (API 호출 제한)**: 로그인, OTP 발송, 기록 입력 등 중요 API에 대해 초당/분당 호출 횟수를 제한하여 무차별 대입(Brute-force) 공격 방어
+- [ ] **Rate Limiting (API 호출 제한)**: API Gateway 또는 전용 Interceptor를 통한 무차별 대입 공격 방어
 - [ ] **Swagger/API Docs 환경 분리**: 프로덕션(운영) 환경에서는 개발용 Swagger-UI(`v3/api-docs`) 엔드포인트 접근 차단
-- [ ] **민감 정보(Secrets) 깃허브 노출 방지**: `.env` 파일과 OAuth2 Client Secret, Gemini API Key, DB 패스워드 등이 절대 `.gitignore` 연동을 누락하여 깃에 올라가지 않았는지 재확인
+- [x] **민감 정보(Secrets) 노출 방지**: `.env` 파일 및 환경 변수를 통한 기밀 정보 관리 준수 (Gemini Key, JWT Secret 등)

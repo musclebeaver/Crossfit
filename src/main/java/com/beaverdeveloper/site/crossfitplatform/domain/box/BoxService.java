@@ -26,8 +26,6 @@ public class BoxService {
         BoxMember member = boxMemberRepository.findById(boxMemberId)
                 .orElseThrow(() -> new IllegalArgumentException("Member request not found"));
 
-        // TODO: Access Control (Check if requester is the box owner)
-
         member = BoxMember.builder()
                 .id(member.getId())
                 .box(member.getBox())
@@ -36,6 +34,11 @@ public class BoxService {
                 .build();
 
         boxMemberRepository.save(member);
+        
+        // 유저 레코드에도 소속 박스 ID 업데이트
+        com.beaverdeveloper.site.crossfitplatform.domain.user.User user = member.getUser();
+        user.updateBox(member.getBox().getId());
+        userRepository.save(user); // JPA Dirty Checking
     }
 
     @Transactional
@@ -51,6 +54,13 @@ public class BoxService {
                 .build();
 
         boxMemberRepository.save(member);
+        
+        // 거절 시 혹시라도 설정되어 있을 소속 박스 ID 초기화
+        com.beaverdeveloper.site.crossfitplatform.domain.user.User user = member.getUser();
+        if (user.getBoxId() != null && user.getBoxId().equals(member.getBox().getId())) {
+            user.updateBox(null);
+            userRepository.save(user);
+        }
     }
 
     public List<BoxMember> getAllMembers(Long boxId, String nickname) {

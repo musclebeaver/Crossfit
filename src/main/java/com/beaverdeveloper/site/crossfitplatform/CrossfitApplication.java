@@ -13,6 +13,7 @@ import java.util.List;
 
 @EnableJpaAuditing
 @org.springframework.scheduling.annotation.EnableScheduling
+@org.springframework.scheduling.annotation.EnableAsync
 @SpringBootApplication
 public class CrossfitApplication {
     public static void main(String[] args) {
